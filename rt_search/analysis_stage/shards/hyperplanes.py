@@ -30,33 +30,9 @@ class Hyperplane:
         except sp.PolynomialError:
             raise ValueError(f'Expression is not linear')
 
-        poly = sp.Poly(self.expr)
-        self.sym_coef_map = {
-            sym: poly.coeff_monomial(sym) if sym in self.expr.free_symbols else 0 for sym in self.symbols
-        }
+        self.sym_coef_map = self.expr.as_coefficients_dict()
         self.linear_term: sp.Expr = sum([self.sym_coef_map[sym] * sym for sym in self.symbols if sym in self.expr.free_symbols])
         self.free_term = self.expr.subs({sym: 0 for sym in self.expr.free_symbols})
-
-    # def uniform(self) -> Tuple[sp.Expr, sp.Expr]:
-    #     """
-    #     From a given linear expression convert to uniform format
-    #     :return: The inequality [e.g.: by+cz+ax+K ---> reordering ---> ax+by+cz, -K]
-    #     """
-    #     symbols = [sym for sym in self.symbols if sym in self.expr.free_symbols]
-    #
-    #     try:
-    #         polys = {var: sp.Poly(self.expr, var) for var in symbols}
-    #         if any(poly.degree() > 1 for poly in polys.values()):
-    #             raise sp.PolynomialError
-    #     except sp.PolynomialError:
-    #         raise ValueError(f'Expression is not linear')
-    #
-    #     k = self.expr.subs({sym: 0 for sym in symbols})
-    #     uniform = sum([poly.coeff(sym) for sym, poly in polys.items() if sym in self.expr.free_symbols])
-    #     # uniform = polys[symbols[0]]
-    #     # for sym in symbols[1:]:
-    #     #     uniform += polys[sym]
-    #     return uniform, -k
 
     @cached_property
     def equation_like(self) -> Tuple[sp.Expr, sp.Expr]:
@@ -67,7 +43,7 @@ class Hyperplane:
 
     @cached_property
     def vectors(self):
-        linear = [self.sym_coef_map[sym] for sym in self.symbols]
+        linear = [self.sym_coef_map.get(sym, 0) for sym in self.symbols]
         return np.array(linear), self.free_term
 
     @property
@@ -85,6 +61,39 @@ class Hyperplane:
         """
         linear, free = self.vectors
         return linear, -free
+
+    def __eq__(self, other: "Hyperplane"):
+        if len(self.symbols) != len(other.symbols):
+            return False
+        if self.symbols == other.symbols:   # If symbols in the same order do simple equality
+            linear, free = self.equation_like
+            linear2, free2 = other.equation_like
+            return (linear == linear2 and free == free2) or (linear == -linear2 and free == -free2)
+
+        # If symbols are ordered in another way still check for equality
+        neg = False
+        first = True
+        for sym in self.symbols:
+            if sym not in other.symbols:
+                return False
+            if self.sym_coef_map[sym] == -other.sym_coef_map[sym]:
+                if first:
+                    neg = True
+                elif not neg:
+                    return False
+            elif self.sym_coef_map[sym] == other.sym_coef_map[sym]:
+                if neg:
+                    return False
+            else:
+                return False
+            first = False
+
+        if neg:
+            return self.free_term == -other.free_term
+        return self.free_term == other.free_term
+
+    def __hash__(self):
+        return hash((self.expr, frozenset(self.symbols)))
 
 
 if __name__ == '__main__':
