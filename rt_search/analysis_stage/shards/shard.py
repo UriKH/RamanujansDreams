@@ -63,9 +63,11 @@ class Shard(Searchable):
     #   using matrix A and b=0 because calculating directions here.
     # TODO: later do the changes for shifts! - directions with no shiff but general shard with!
     def sample_trajectory(self, n_samples=Optional[int]) -> List[Position]:
-        raise NotImplementedError()
-
-    def __sample_trajectory(self):
+        """
+        TODO: Implement this!
+            Demands: gcd(coords) = 1, opt(within R radius), uniform sampling, dims 3-20
+            Options: IHR (probably best). dim < 6 use Barvinok / LattE
+        """
         error = 1e-12
 
         def neighbors(x, A, b, R=None, neighbor_radius=1):
