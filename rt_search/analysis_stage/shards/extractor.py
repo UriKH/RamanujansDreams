@@ -4,23 +4,12 @@ Extractor is responsible for shard creation
 import itertools
 
 from rt_search.utils.types import *
-from rt_search.utils.geometry.plane import Plane
 from rt_search.configs import (
     sys_config,
     analysis_config
 )
 
-from rt_search.analysis_stage.shards.shard import Shard
-from rt_search.utils.geometry.point_generator import PointGenerator
-from rt_search.utils.logger import Logger
 from rt_search.utils.cmf import CMF
-
-from itertools import product
-from functools import lru_cache, partial
-from scipy.optimize import linprog
-import numpy as np
-from numpy import linalg
-from tqdm import tqdm
 from concurrent.futures import ProcessPoolExecutor
 from rt_search.analysis_stage.shards.hyperplanes import Hyperplane
 
@@ -31,17 +20,6 @@ class ShardExtractor:
         self.cmf: CMF = cmf
         self.shift: Position = shift
         self.pool = ProcessPoolExecutor() if analysis_config.PARALLEL_SHARD_VALIDATION else None
-        # self.hps, self.symbols = self.__extract_shard_hyperplanes(cmf)
-        # Logger(
-        #     f'\n* symbols for this CMF: {self.symbols}\n* Shifts: {self.shifts}', Logger.Levels.info
-        # ).log(msg_prefix='\n')
-        #
-        # # This will be instantiated later on the first call to get_encoded_shards()
-        # self._mono_shard = len(self.hps) == 0
-        # self._encoded_shards = [tuple()] if self._mono_shard else None
-        # self._feasible_points = [[0] * len(self.symbols)] if self._mono_shard else None
-        # self._shards = [Shard(tuple(), self)] if self._mono_shard else None
-        # self._populated = False
 
     def compute_groups(self) -> Dict[Tuple[sp.Symbol, ...], Set[Hyperplane]]:
         """
