@@ -1,3 +1,4 @@
+from ramanujantools import Position
 from dataclasses import dataclass
 from functools import cached_property
 
@@ -22,7 +23,7 @@ class Hyperplane:
             raise ValueError(
                 f'Missing symbols in ordering. Expression contains {self.expr.free_symbols} but given {self.symbols}'
             )
-        # self.linear_term, self.free_term = self.uniform()
+
         try:
             polys = {var: sp.Poly(self.expr, var) for var in self.expr.free_symbols}
             if any(poly.degree() > 1 for poly in polys.values()):
@@ -33,6 +34,27 @@ class Hyperplane:
         self.sym_coef_map = self.expr.as_coefficients_dict()
         self.linear_term: sp.Expr = sum([self.sym_coef_map[sym] * sym for sym in self.symbols if sym in self.expr.free_symbols])
         self.free_term = self.expr.subs({sym: 0 for sym in self.expr.free_symbols})
+
+    def is_in_integer_shift(self) -> bool:
+        """
+        Checks if the hyperplane passes in shift points.
+        :param shift: shift of each point in the lattice
+        :return: True if passes in shift points. False otherwise.
+        """
+        coeffs = list(self.sym_coef_map.values())
+        if (gcd := sp.gcd(coeffs) if coeffs else 0) == 0:
+            return self.free_term == 0
+        return sp.Abs(self.free_term) % gcd == 0
+
+    def apply_shift(self, shift: Position) -> 'Hyperplane':
+        """
+        Applies a shift to this hyperplane.
+        :param shift: a shift in each axis
+        :return: The shifted hyperplane
+        """
+        # TODO: I think this is wrong, maybe should be a minus instead of a plus here????
+        expr = self.expr.subs({sym: sym + shift[sym] for sym in self.expr.free_symbols})
+        return Hyperplane(expr, symbols=self.symbols)
 
     @cached_property
     def equation_like(self) -> Tuple[sp.Expr, sp.Expr]:
@@ -49,18 +71,18 @@ class Hyperplane:
     @property
     def as_below_vector(self):
         """
-        linear - free <= 0 ---> linear <= free ---> -linear >= -free
+        linear + free <= 0 ---> linear <= -free
         """
         linear, free = self.vectors
-        return -linear, -free
+        return linear, -free
 
     @property
     def as_above_vector(self):
         """
-        linear - free >= 0 ---> linear >= -free
+        linear + free >= 0 ---> linear >= -free --> -linear <= free
         """
         linear, free = self.vectors
-        return linear, -free
+        return -linear, free
 
     def __eq__(self, other: "Hyperplane"):
         if len(self.symbols) != len(other.symbols):

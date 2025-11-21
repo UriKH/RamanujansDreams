@@ -1,18 +1,39 @@
 """
 Representation of a shard
 """
+from functools import lru_cache
+
 import numpy as np
 import random
+
+from sympy.core.cache import cached_property
+
 from rt_search.analysis_stage.shards.hyperplanes import Hyperplane
 from rt_search.analysis_stage.shards.searchable import *
 import pulp
+from typing import Union, Set
+from scipy.optimize import linprog
 
 
 class Shard(Searchable):
-    def __init__(self, A, b, symbols):
+    def __init__(self,
+                 A: np.ndarray,
+                 b: np.array,
+                 group: Tuple[sp.Symbol, ...],
+                 shift: Position,
+                 symbols: List[sp.Symbol]):
+        """
+        :param A: Matrix A defining the linear terms in the inequalities
+        :param b: Vector b defining the free terms in the inequalities
+        :param group: The shard group this shard is part of
+        :param shift: The shift in start points required
+        :param symbols: Symbols used by the CMF which this shard is part of
+        """
         self.A = A
         self.b = b
+        self.group = group
         self.symbols = symbols
+        self.shift = np.array([shift[sym] for sym in self.symbols])
 
     def in_space(self, point: Position) -> bool:
         point = np.array(point.sorted().values())
@@ -22,37 +43,12 @@ class Shard(Searchable):
         # TODO: Use code in notebook
         raise NotImplementedError()
 
-    def get_interior_point(self, suspected_point: Optional[Position] = None) -> Position:
+    def get_interior_point(self, suspected_point: Optional[Position] = None) -> Optional[Position]:
         """
         Find an interior point in the shard.
         :param suspected_point: a point that is within the shard bounds (might be generated in the extractor)
         :return: An interior point
         """
-        def find_integer_point_milp(A, b, xmin, xmax) -> Optional[np.ndarray]:
-            """
-            Use PuLP MILP CBC solver to find feasible point
-            :param A: Original hyperplane constraints (linear terms)
-            :param b: Original hyperplane constraints (free terms)
-            :param xmin: minimum bound on each variable
-            :param xmax: maximum bound on each variable
-            :return: Vector representing the feasible point
-            """
-            m, d = A.shape
-            prob = pulp.LpProblem('find_int_point', pulp.LpStatusOptimal)
-            vars = [
-                pulp.LpVariable(f'x{i}', lowBound=int(xmin[i]), upBound=int(xmax[i]), cat='Integer')
-                for i in range(d)
-            ]
-
-            # no objective, just feasibility: add 0 objective
-            prob += 0
-            for i in range(m):
-                prob += pulp.lpSum(A[i, j] * vars[j] for j in range(d)) <= b[i]
-            prob.solve(pulp.PULP_CBC_CMD(msg=False))
-            if pulp.LpStatus[prob.status] != 'Optimal':
-                return None
-            return np.array([int(v.value()) for v in vars], dtype=int)
-
         if suspected_point is None:
             xmin = list(-5 * np.ones((len(self.symbols,))))
             xmax = list(5 * np.ones((len(self.symbols,))))
@@ -60,7 +56,7 @@ class Shard(Searchable):
             xmin = [-3 + suspected_point[sym] for sym in self.symbols]
             xmax = [3 + suspected_point[sym] for sym in self.symbols]
 
-        interior_pt = find_integer_point_milp(self.A, self.b, xmin, xmax)
+        interior_pt = self.__find_integer_point_milp(self.A, self.b, xmin, xmax)
         if interior_pt is None:
             raise Exception('No interior point')
         if not np.all(self.A @ interior_pt.T <= self.b):
@@ -87,7 +83,7 @@ class Shard(Searchable):
                     y[j] += s
                     if R is not None and np.linalg.norm(y) > R + error:
                         continue
-                    if feasible_integer(y, A, b):
+                    if np.all(A @ y >= b):
                         neighs.append(y)
             return neighs
 
@@ -130,9 +126,63 @@ class Shard(Searchable):
 
         return None
 
+    # TODO: remove this if not used...
+    # @staticmethod
+    # def __solve_linear_ineq(A: np.ndarray, b: np.array) -> Tuple[bool, List[int | float]]:
+    #     """
+    #     Checks if there exists a solution x for: Ax <= b
+    #     :param A: linear part of the equations
+    #     :param b: vector of free terms in the equations
+    #     :return: if exists (True, solution) else (False, [])
+    #     """
+    #     _, d = A.shape
+    #     bounds = [(None, None)] * d
+    #     res = linprog(c=[0] * d, bounds=bounds, A_ub=A, b_ub=b, method="highs")
+    #
+    #     if res.success or res.status == 3:
+    #         # status == 3 means "unbounded" in HiGHS, which is fine
+    #         x = res.x.tolist() if res.x is not None else []
+    #         return True, x
+    #     return False, []
+
+    @staticmethod
+    @lru_cache
+    def __find_integer_point_milp(
+            A, b, xmin: Optional[List[int]] = None, xmax: Optional[List[int]] = None
+    ) -> Optional[np.ndarray]:
+        """
+        Use PuLP MILP CBC solver to find feasible point
+        :param A: Original hyperplane constraints (linear terms)
+        :param b: Original hyperplane constraints (free terms)
+        :param xmin: minimum bound on each variable
+        :param xmax: maximum bound on each variable
+        :return: Vector representing the feasible point
+        """
+        m, d = A.shape
+        prob = pulp.LpProblem('find_int_point', pulp.LpStatusOptimal)
+        vars = [
+            pulp.LpVariable(
+                f'x{i}',
+                lowBound=int(xmin[i]) if xmin is not None else None,
+                upBound=int(xmax[i]) if xmax is not None else None,
+                cat='Integer'
+            )
+            for i in range(d)
+        ]
+
+        # no objective, just feasibility: add 0 objective
+        prob += 0
+        for i in range(m):
+            prob += pulp.lpSum(A[i, j] * vars[j] for j in range(d)) <= b[i]
+        prob.solve(pulp.PULP_CBC_CMD(msg=False))
+        if pulp.LpStatus[prob.status] != 'Optimal':
+            return None
+        return np.array([int(v.value()) for v in vars], dtype=int)
+
     @staticmethod
     def generate_matrices(
-            hyperplanes: List[sp.Expr], above_below_indicator: List[int]
+            hyperplanes: Union[List[sp.Expr], List[Hyperplane]],
+            above_below_indicator: Union[List[int], Tuple[int, ...]]
     ) -> Tuple[np.ndarray, np.array, List[sp.Symbol]]:
         if (l_hps := len(hyperplanes)) != (l_ind := len(above_below_indicator)):
             raise ValueError(f"Number of hyperplanes does not match number of indicators {l_hps}!={l_ind}")
@@ -147,7 +197,10 @@ class Shard(Searchable):
         free_terms = []
 
         for expr, ind in zip(hyperplanes, above_below_indicator):
-            hp = Hyperplane(expr, symbols)
+            if isinstance(expr, Hyperplane):
+                hp = expr
+            else:
+                hp = Hyperplane(expr, symbols)
             if ind == 1:
                 v, free = hp.as_above_vector
             else:
@@ -156,8 +209,30 @@ class Shard(Searchable):
             vectors.append(v)
         return np.vstack(tuple(vectors)), np.array(free_terms), symbols
 
+    @property
+    def b_shifted(self):
+        """
+        Computes b with respect to shifted hyperplanes: Ax <= b' instead of Ax <= b
+        :return: The shifted b vector
+        """
+        S = np.eye(self.shift.shape[0]) * self.shift
+        return b + (self.A @ S).sum(axis=1)
+
+    @cached_property
+    def start_point(self):
+        return self.__find_integer_point_milp(self.A, self.b_shifted)
+
+    @cached_property
+    def is_valid(self):
+        if self.start_point is None:
+            return False
+        _, d = self.A.shape
+        return self.__find_integer_point_milp(self.A, np.zeros(d)) is not None
+
 
 if __name__ == '__main__':
     a = np.array([[1, 2], [3, 4]])
-    b = np.array([1,1])
-    print(a @ b.T)
+    b = np.array([1, 1])
+    x, y = sp.symbols('x y')
+    shard = Shard(a, b, Position({x: 0.5, y: 0.5}), [x, y])
+    print(shard.b_shifted)
