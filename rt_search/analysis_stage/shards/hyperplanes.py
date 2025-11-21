@@ -1,6 +1,6 @@
 from ramanujantools import Position
 from dataclasses import dataclass
-from functools import cached_property
+from rt_search.utils.caching import *
 
 import sympy as sp
 from typing import Tuple, Optional, List
@@ -53,7 +53,7 @@ class Hyperplane:
         :return: The shifted hyperplane
         """
         # TODO: I think this is wrong, maybe should be a minus instead of a plus here????
-        expr = self.expr.subs({sym: sym + shift[sym] for sym in self.expr.free_symbols})
+        expr = self.expr.subs({sym: sym - shift[sym] for sym in self.expr.free_symbols})
         return Hyperplane(expr, symbols=self.symbols)
 
     @cached_property

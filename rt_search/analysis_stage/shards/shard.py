@@ -1,18 +1,14 @@
 """
 Representation of a shard
 """
-from functools import lru_cache
-
 import numpy as np
 import random
 
-from sympy.core.cache import cached_property
-
 from rt_search.analysis_stage.shards.hyperplanes import Hyperplane
 from rt_search.analysis_stage.shards.searchable import *
+from rt_search.utils.caching import *
 import pulp
 from typing import Union, Set
-from scipy.optimize import linprog
 
 
 class Shard(Searchable):
@@ -127,6 +123,7 @@ class Shard(Searchable):
         return None
 
     # TODO: remove this if not used...
+    # from scipy.optimize import linprog
     # @staticmethod
     # def __solve_linear_ineq(A: np.ndarray, b: np.array) -> Tuple[bool, List[int | float]]:
     #     """

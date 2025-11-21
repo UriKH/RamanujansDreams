@@ -3,7 +3,7 @@ Extractor is responsible for shard creation
 """
 import itertools
 from collections import defaultdict
-from functools import cached_property
+from rt_search.utils.caching import *
 
 from ramanujantools.position import Position
 from typing import Tuple, Dict, List, Set
