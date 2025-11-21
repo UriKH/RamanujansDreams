@@ -1,4 +1,4 @@
-# RT-CMF-sys
+# Ramanujan Dreams
 
 ## Installation
 For installation as a package run: `pip install git+https://github.com/UriKH/RT-CMF-sys.git`  
