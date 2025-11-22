@@ -1,7 +1,7 @@
 # Ramanujan Dreams
 
 ## Installation
-For installation as a package run: `pip install git+https://github.com/UriKH/RT-CMF-sys.git`  
+For installation as a package run: `pip install git+https://github.com/UriKH/RamanujanDreams.git`  
 
 ## System general flow
 The system running flow is similar to the following (WIP)
