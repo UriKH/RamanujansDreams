@@ -1,15 +1,11 @@
 """
 Representation of a shard
 """
-import numpy as np
-import math
-from functools import reduce
 from rt_search.analysis_stage.shards.hyperplanes import Hyperplane
 from rt_search.analysis_stage.shards.searchable import *
 from rt_search.utils.caching import *
 import pulp
-from typing import Union, Set, Iterator
-
+from typing import Union
 import numpy as np
 import time
 from numba import njit, float64, int64, boolean
@@ -18,11 +14,12 @@ from scipy.special import gamma, zeta
 
 class Shard(Searchable):
     def __init__(self,
+                 cmf: CMF,
                  A: np.ndarray,
                  b: np.array,
-                 group: Tuple[sp.Symbol, ...],
                  shift: Position,
-                 symbols: List[sp.Symbol]):
+                 symbols: List[sp.Symbol]
+                 ):
         """
         :param A: Matrix A defining the linear terms in the inequalities
         :param b: Vector b defining the free terms in the inequalities
@@ -30,19 +27,15 @@ class Shard(Searchable):
         :param shift: The shift in start points required
         :param symbols: Symbols used by the CMF which this shard is part of
         """
+        super().__init__(cmf)
         self.A = A
         self.b = b
-        self.group = group
         self.symbols = symbols
         self.shift = np.array([shift[sym] for sym in self.symbols])
 
     def in_space(self, point: Position) -> bool:
         point = np.array(point.sorted().values())
         return np.all(self.A @ point >= self.b)
-
-    def calc_delta(self, start: Position, trajectory: Position) -> float:
-        # TODO: Use code in notebook
-        raise NotImplementedError()
 
     def get_interior_point(self, suspected_point: Optional[Position] = None) -> Optional[Position]:
         """
@@ -72,32 +65,18 @@ class Shard(Searchable):
         (fraction of the cone is taking from the sphere)
         :return: a list of sampled trajectories
         """
-        A, encoding_mask = self.mask_symbols(self.A, self.group, self.symbols)
-        R, fraction = self.compute_required_radius(A, n_samples)
+        R, fraction = self.compute_required_radius(self.A, n_samples)
         if strict:
             # Compute the radius with some safety mesures
             n_samples = np.ceil(int(n_samples / fraction * 1.02))
             R = self.compute_ball_radius(len(self.symbols), n_samples)
         else:
             n_samples = int(np.ceil(n_samples * fraction))
-        sampler = CHRRSampler(A, np.zeros_like(self.b), R=R, thinning=5)
+        sampler = CHRRSampler(self.A, np.zeros_like(self.b), R=R, thinning=5)
         return [
-            Position({sym: v for v, sym in zip(self.reconstruct(p, encoding_mask), self.symbols)})
+            Position({sym: v for v, sym in zip(p, self.symbols)})
             for p in sampler.sample(n_samples)
         ]
-
-    @staticmethod
-    def mask_symbols(A, group, symbols):
-        encoding_mask = np.array([symbol in group for symbol in symbols])
-        if np.all(encoding_mask):
-            print('bad bad')
-        return A[:, encoding_mask], encoding_mask
-
-    @staticmethod
-    def reconstruct(x_reduced, mask):
-        x = np.zeros(len(mask), dtype=x_reduced.dtype)
-        x[mask] = x_reduced
-        return x
 
     @staticmethod
     def compute_required_radius(A, n_target, sample_count=10_000, safety_factor=1.05):
@@ -274,7 +253,7 @@ class Shard(Searchable):
         return self.__find_integer_point_milp(self.A, np.zeros(d)) is not None
 
 
-# --- Shared Numba Logic ---
+# --- Numba Logic ---
 
 @njit(cache=True)
 def gcd_recursive(a, b):
@@ -287,7 +266,8 @@ def gcd_recursive(a, b):
 def get_gcd_of_array(arr):
     """Calculates GCD of a vector. Returns 1 immediately if any pair gives 1."""
     d = len(arr)
-    if d == 0: return 0
+    if d == 0:
+        return 0
     result = abs(arr[0])
     for i in range(1, d):
         result = gcd_recursive(result, abs(arr[i]))
