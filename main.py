@@ -12,7 +12,7 @@ if __name__ == '__main__':
         },
         analysis={
             'IDENTIFY_THRESHOLD': 0,
-            'PARTIAL_SEARCH_FACTOR': 0.2
+            'PARTIAL_SEARCH_FACTOR': 0.5
         }
     )
     results = System(

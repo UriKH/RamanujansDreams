@@ -62,7 +62,11 @@ class Searchable(ABC):
 
         # If cache miss - use LIReC
         if not cache_hit:
-            res = db.identify([constant.evalf(300)] + t1_col[1:])
+            try:
+                res = db.identify([constant.evalf(300)] + t1_col[1:])
+            except:
+                print(f'traj={traj}, start={start}, constant={constant}')
+                raise
             if not res:
                 return None, None, None
 
@@ -70,7 +74,10 @@ class Searchable(ABC):
             p, q = coeffs[0::2], coeffs[1::2]
 
         # Check convergence
-        converge, (_, limit, _) = self._does_converge(traj_m, p, q)
+        try:
+            converge, (_, limit, _) = self._does_converge(traj_m, p, q)
+        except:
+            converge = False
         if not converge:
             return None, None, None
 

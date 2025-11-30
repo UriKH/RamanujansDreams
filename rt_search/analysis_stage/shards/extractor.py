@@ -3,7 +3,7 @@ Extractor is responsible for shard creation
 """
 import itertools
 from ramanujantools.position import Position
-from typing import Tuple, Dict, List, Set
+from rt_search.utils.types import *
 import sympy as sp
 
 from rt_search.configs import (
@@ -11,7 +11,6 @@ from rt_search.configs import (
     analysis_config
 )
 
-from rt_search.utils.cmf import CMF
 from concurrent.futures import ProcessPoolExecutor
 from rt_search.analysis_stage.shards.hyperplanes import Hyperplane
 from rt_search.analysis_stage.shards.shard import Shard
@@ -47,7 +46,6 @@ class ShardExtractor:
             solutions = {(sym, sol) for sym in den.free_symbols for sol in sp.solve(den, sym)}
             for lhs, rhs in solutions:
                 l.add(Hyperplane(lhs - rhs, symbols))
-            print(l)
 
         # Zero det solutions
         solutions = [tuple(*sol.items()) for sol in sp.solve(mat.det())]
@@ -70,7 +68,7 @@ class ShardExtractor:
         filtered_hps = set()
         for mat in self.cmf.matrices.values():
             filtered = self.extract_matrix_hps(mat, self.shift, self.symbols)
-            filtered_hps.update(filtered)
+            filtered_hps.update(set(filtered))
         return filtered_hps
 
     def extract_shards(self) -> List[Shard]:
@@ -89,7 +87,7 @@ class ShardExtractor:
                 i += 1
             return None
 
-        shards_encodings = itertools.combinations((-1, 1), len(self.symbols)) # TODO: This might take a long time!
+        shards_encodings = itertools.product((-1, 1), repeat=len(self.symbols)) # TODO: This might take a long time!
         # TODO: while enc := bit_comb_generator(len(self.symbols)):
         for enc in shards_encodings:
             A, b, syms = Shard.generate_matrices(list(hps), enc)

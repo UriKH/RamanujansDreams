@@ -40,25 +40,6 @@ class Shard(Searchable):
 
     def get_interior_point(self) -> Position:
         return Position({sym: v for v, sym in zip(self.start_coord, self.symbols)})
-        # """
-        # Find an interior point in the shard.
-        # :param suspected_point: a point that is within the shard bounds (might be generated in the extractor)
-        # :return: An interior point
-        # """
-        # suspected_point = self.start_point
-        # if suspected_point is None:
-        #     xmin = list(-5 * np.ones((len(self.symbols,))))
-        #     xmax = list(5 * np.ones((len(self.symbols,))))
-        # else:
-        #     xmin = [-3 + suspected_point[sym] for sym in self.symbols]
-        #     xmax = [3 + suspected_point[sym] for sym in self.symbols]
-        #
-        # interior_pt = self.__find_integer_point_milp(self.A, self.b_shifted, xmin, xmax)
-        # if interior_pt is None:
-        #     raise Exception('No interior point')
-        # if not np.all(self.A @ interior_pt.T <= self.b):
-        #     raise Exception('Invalid result!')
-        # return Position({sym: v for sym, v in zip(interior_pt, self.symbols)})
 
     def sample_trajectories(self, n_samples, *, strict: Optional[bool] = False) -> Set[Position]:
         """
@@ -76,9 +57,10 @@ class Shard(Searchable):
         else:
             n_samples = int(np.ceil(n_samples * fraction))
         sampler = CHRRSampler(self.A, np.zeros_like(self.b), R=R, thinning=5)
+
         return {
             Position({sym: v for v, sym in zip(p, self.symbols)})
-            for p in sampler.sample(n_samples)
+            for p in sampler.sample(n_samples)[0]
         }
 
     @staticmethod
@@ -172,10 +154,10 @@ class Shard(Searchable):
         return R
 
     @staticmethod
-    @lru_cache
+    # @lru_cache
     def __find_integer_point_milp(
-            A, b, xmin: Optional[List[int]] = None, xmax: Optional[List[int]] = None
-    ) -> Optional[np.ndarray]:
+            A: np.array, b: np.array, xmin: Optional[List[int]] = None, xmax: Optional[List[int]] = None
+    ) -> Optional[np.array]:
         """
         Use PuLP MILP CBC solver to find feasible point
         :param A: Original hyperplane constraints (linear terms)
@@ -203,21 +185,21 @@ class Shard(Searchable):
         prob.solve(pulp.PULP_CBC_CMD(msg=False))
         if pulp.LpStatus[prob.status] != 'Optimal':
             return None
-        return np.array([int(v.value()) for v in vars], dtype=int)
+        return np.array([int(val) if (val := var.value()) else 0 for var in vars], dtype=int)
 
     @staticmethod
     def generate_matrices(
-            hyperplanes: Union[List[sp.Expr], List[Hyperplane]],
+            hyperplanes: List[Hyperplane],
             above_below_indicator: Union[List[int], Tuple[int, ...]]
     ) -> Tuple[np.ndarray, np.array, List[sp.Symbol]]:
-        if (l_hps := len(hyperplanes)) != (l_ind := len(above_below_indicator)):
-            raise ValueError(f"Number of hyperplanes does not match number of indicators {l_hps}!={l_ind}")
+        # if (l_hps := len(hyperplanes)) != (l_ind := 2**len(above_below_indicator)):
+        #     raise ValueError(f"Number of hyperplanes does not match number of indicators {l_hps}!={l_ind}")
         if any(ind != 1 and ind != -1 for ind in above_below_indicator):
             raise ValueError(f"Indicators vector must be 1 (above) or -1 (below)")
 
-        symbols = set()
-        for hyperplane in hyperplanes:
-            symbols.union(hyperplane.free_symbols)
+        symbols = hyperplanes[0].symbols
+        # for hyperplane in hyperplanes:
+        #     symbols.union(hyperplane.linear_term.free_symbols)
         symbols = list(symbols)
         vectors = []
         free_terms = []
@@ -242,11 +224,14 @@ class Shard(Searchable):
         :return: The shifted b vector
         """
         S = np.eye(self.shift.shape[0]) * self.shift
-        return b + (self.A @ S).sum(axis=1)
+        return self.b + (self.A @ S).sum(axis=1)
 
     @cached_property
     def start_coord(self):
-        return self.__find_integer_point_milp(self.A, self.b_shifted) + self.shift
+        res = self.__find_integer_point_milp(self.A, self.b_shifted)
+        if res is None:
+            return None
+        return res + self.shift
 
     @cached_property
     def is_valid(self):

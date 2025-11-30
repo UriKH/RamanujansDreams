@@ -16,10 +16,6 @@ class Hyperplane:
     expr: sp.Expr
     symbols: Optional[List[sp.Basic]] = None
 
-    # TODO: convert to usage of:
-    #   expr.as_ordered_terms()
-    #   expr.as_coeff_Mul()
-    #   Poly(expr).coeffs()
     def __post_init__(self):
         if self.symbols is None:
             self.symbols = list(self.expr.free_symbols)
@@ -36,8 +32,11 @@ class Hyperplane:
             raise ValueError(f'Expression is not linear: {self.expr}')
 
         self.sym_coef_map = self.expr.as_coefficients_dict()
-        self.linear_term: sp.Expr = sum([self.sym_coef_map[sym] * sym for sym in self.symbols if sym in self.expr.free_symbols])
-        self.free_term = self.expr.subs({sym: 0 for sym in self.expr.free_symbols})
+        self.poly = sp.Poly(self.expr)
+        self.free_term = self.sym_coef_map.get(1, 0)
+        self.linear_term = self.expr - self.free_term
+        if self.poly.coeffs()[0] < 1:
+            self.linear_term = -self.linear_term
 
     def is_in_integer_shift(self) -> bool:
         """
@@ -94,38 +93,41 @@ class Hyperplane:
         if self.symbols == other.symbols:   # If symbols in the same order do simple equality
             linear, free = self.equation_like
             linear2, free2 = other.equation_like
-            return (linear == linear2 and free == free2) or (linear == -linear2 and free == -free2)
-
-        # If symbols are ordered in another way still check for equality
-        neg = False
-        first = True
-        for sym in self.symbols:
-            if sym not in other.symbols:
-                return False
-            if self.sym_coef_map[sym] == -other.sym_coef_map[sym]:
-                if first:
-                    neg = True
-                elif not neg:
-                    return False
-            elif self.sym_coef_map[sym] == other.sym_coef_map[sym]:
-                if neg:
-                    return False
-            else:
-                return False
-            first = False
-
-        if neg:
-            return self.free_term == -other.free_term
-        return self.free_term == other.free_term
+            return (linear.equals(linear2) and free == free2) or (linear.equals(-linear2) and free == -free2)
+        return False
+        # # If symbols are ordered in another way still check for equality
+        # neg = False
+        # first = True
+        # for sym in self.symbols:
+        #     if sym not in other.symbols:
+        #         return False
+        #     if self.sym_coef_map[sym] == -other.sym_coef_map[sym]:
+        #         if first:
+        #             neg = True
+        #         elif not neg:
+        #             return False
+        #     elif self.sym_coef_map[sym] == other.sym_coef_map[sym]:
+        #         if neg:
+        #             return False
+        #     else:
+        #         return False
+        #     first = False
+        #
+        # if neg:
+        #     return self.free_term == -other.free_term
+        # return self.free_term == other.free_term
 
     def __hash__(self):
-        return hash((self.expr, frozenset(self.symbols)))
+        return hash((self.equation_like, frozenset(self.symbols)))
 
 
 if __name__ == '__main__':
     x, y, z, a = sp.symbols('x y z a')
+    x0, x1, y0 = sp.symbols('x0 x1 y0')
     expr = 2*x+4*z-2*y+5
     hp = Hyperplane(expr, [a, x, y, z])
-
-    print(hp.equation_like)
-    print(hp.vectors)
+    hp1 = Hyperplane(-x0 + y0, [x0, x1, y0])
+    hp2 = Hyperplane(x0 - y0, [x0, x1, y0])
+    print(hp1 == hp2)
+    # print(hp.equation_like)
+    # print(hp.vectors)

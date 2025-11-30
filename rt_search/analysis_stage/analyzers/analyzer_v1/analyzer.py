@@ -1,6 +1,5 @@
 from ...analysis_scheme import AnalyzerScheme
-from ...subspaces.searchable import Searchable
-# from ...subspaces.shard.shard_extraction import ShardExtractor
+from ...shards.searchable import Searchable
 from ...shards.extractor import ShardExtractor
 from rt_search.search_stage.data_manager import DataManager
 from rt_search.search_stage.methods.serial.serial_searcher import SerialSearcher
@@ -24,27 +23,11 @@ class Analyzer(AnalyzerScheme):
         self.extractor = ShardExtractor(const_name, cmf, shift)
         self.shards = self.extractor.extract_shards()
 
-    def search(self, method: str = 'sphere', length: int = 4) -> Dict[Searchable, DataManager]:
+    def search(self) -> Dict[Searchable, DataManager]:
         managers = {}
-        # bad_shards = 0
-        # for shard in self.shards:
-        #     if shard.get_interior_point() is None:
-        #         bad_shards += 1
-        # if bad_shards > 0:
-        #     Logger(
-        #         f'Could not find valid start points for {bad_shards}/{len(self.shards)} of the shards.'
-        #         f'\nTry increasing MAX_EXPANSIONS or changing the shift values.', Logger.Levels.warning
-        #     ).log(msg_prefix='\n')
 
         for shard in tqdm(self.shards, desc=f'Analyzing shards', **sys_config.TQDM_CONFIG):
             start = shard.get_interior_point()
-            # if start is None:
-            #     Logger(
-            #         f'Could not find valid start point search in shard (probably due to shift).'
-            #         f' Try increasing MAX_EXPANSIONS.', Logger.Levels.warning,
-            #         condition=analysis_config.WARN_ON_EMPTY_SHARDS
-            #     ).log(msg_prefix='\n')
-            #     continue
 
             searcher = SerialSearcher(shard, self.constant, use_LIReC=analysis_config.USE_LIReC, deep_search=False)
             searcher.generate_trajectories(analysis_config.NUM_TRAJECTORIES_FROM_DIM(len(shard.symbols)))

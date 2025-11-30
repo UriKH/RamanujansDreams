@@ -6,20 +6,17 @@ from enum import Enum, auto
 import os
 import json
 
-from ..analysis_stage.subspaces.searchable import Searchable
+from ..analysis_stage.shards.searchable import Searchable
 from ..analysis_stage.analysis_scheme import AnalyzerModScheme
 from .errors import UnknownConstant
 from ..db_stage.db_scheme import DBModScheme
 from rt_search.db_stage.funcs.formatter import Formatter
 from ..search_stage.data_manager import DataManager
 from ..search_stage.searcher_scheme import SearcherModScheme
-from ..utils.IO.exporter import Exporter
+from ..utils.storage import Exporter, Importer, Formats
 from ..utils.types import *
 from ..utils.logger import Logger
-from ..utils.IO.importer import Importer
-from ..configs import (
-    sys_config
-)
+from ..configs import sys_config
 
 
 class System:
@@ -67,12 +64,12 @@ class System:
             for const, l in cmf_data.items():
                 # Sanitize filename (optional, avoids invalid characters)
                 safe_key = "".join(c for c in const if c.isalnum() or c in ('-', '_'))
-                file_path = os.path.join(path, f"{safe_key}.json")
+                path = os.path.join(path, safe_key)
 
-                # # Write JSON list to file
-                with open(file_path, "w", encoding="utf-8") as f:
-                    exporter = Exporter[ShiftCMF](file_path)
-                    exporter(l)
+                Exporter.export(path, exists_ok=True, clean_exists=True, data=l, fmt=Formats.PICKLE)
+                Logger(
+                    f'CMFs for {const} exported to {path}', Logger.Levels.info
+                ).log(msg_prefix='\n')
 
         for constant, funcs in cmf_data.items():
             functions = '\n'
@@ -89,26 +86,24 @@ class System:
             for const, l in priorities.items():
                 # Sanitize filename (optional, avoids invalid characters)
                 safe_key = "".join(c for c in const if c.isalnum() or c in ('-', '_'))
-                file_path = os.path.join(path, f"{safe_key}.json")
+                path = os.path.join(path, safe_key)
 
-                # Write JSON list to file
-                # with open(file_path, "a+", encoding="utf-8") as f:
-                # exporter = Exporter[Searchable](file_path)
-                # exporter(l)
+                Exporter.export(path, exists_ok=True, clean_exists=True, data=l, fmt=Formats.PICKLE)
+                Logger(
+                    f'Priorities for {const} exported to {path}', Logger.Levels.info
+                ).log(msg_prefix='\n')
 
         self.__search_stage(priorities)
 
     def __db_stage(self, constants: Dict[str, Any]) -> Dict[str, List[ShiftCMF]]:
         modules = []
-
-        importer = Importer[Formatter]()
         cmf_data = defaultdict(set)
 
         for db in self.if_srcs:
             if isinstance(db, DBModScheme):
                 modules.append(db)
             elif isinstance(db, str):
-                f_data = importer(db, False)
+                f_data = Importer.imprt(db)
                 for obj in f_data:
                     cmf_data[obj.const].add(obj.to_cmf())
             elif isinstance(db, Formatter):
@@ -141,7 +136,6 @@ class System:
         """
         analyzers = []
         results = defaultdict(set)
-        importer = Importer[Searchable]()
 
         for analyzer in self.analyzers:
             match analyzer:
@@ -150,7 +144,7 @@ class System:
                 case Searchable():
                     results[analyzer.const_name].add(analyzer)
                 case str():
-                    f_data = importer(analyzer, False)
+                    f_data = Importer.imprt(analyzer)
                     for obj in f_data:
                         results[obj.const_name].add(obj)
                 case _:
@@ -185,6 +179,7 @@ class System:
             for entry in os.scandir(dir_path):
                 if not entry.is_file():
                     continue
+                # TODO: !!!!!!!!!!!!!!
                 with open(entry.path, "r") as f:
                     data = json.load(f)
                     dm = DataManager.from_json_obj(data['result'])
@@ -314,17 +309,3 @@ class System:
                 raise Exception('This was not supposed to happen')
             result[key] = consensus
         return result
-
-
-"""
-Ideal usage is as follows:
-Importation and exportation method is used based on the given file type! (extracted using file suffix i.e. '.json' or '.pkl')
-
-Read objects from a file using:
-    importer = Importer[Type]()
-    objects = importer('my_file.json')  or  importer('<directory path>') <- returns a dictionary matching each subfolder / file name to the contained object
-
-Write objects to a file using:
-    exporter = Exporter[Type]()
-    exporter('my_file.json', objects)
-"""
