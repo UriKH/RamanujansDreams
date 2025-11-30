@@ -16,6 +16,10 @@ class Hyperplane:
     expr: sp.Expr
     symbols: Optional[List[sp.Basic]] = None
 
+    # TODO: convert to usage of:
+    #   expr.as_ordered_terms()
+    #   expr.as_coeff_Mul()
+    #   Poly(expr).coeffs()
     def __post_init__(self):
         if self.symbols is None:
             self.symbols = list(self.expr.free_symbols)
@@ -29,7 +33,7 @@ class Hyperplane:
             if any(poly.degree() > 1 for poly in polys.values()):
                 raise sp.PolynomialError
         except sp.PolynomialError:
-            raise ValueError(f'Expression is not linear')
+            raise ValueError(f'Expression is not linear: {self.expr}')
 
         self.sym_coef_map = self.expr.as_coefficients_dict()
         self.linear_term: sp.Expr = sum([self.sym_coef_map[sym] * sym for sym in self.symbols if sym in self.expr.free_symbols])

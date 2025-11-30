@@ -3,7 +3,7 @@ from copy import copy
 import mpmath as mp
 import random
 
-from ..analysis_stage.subspaces.searchable import Searchable
+from ..analysis_stage.shards.searchable import Searchable
 from .data_manager import DataManager
 from ..utils.types import *
 from ..system.module import Module
@@ -41,12 +41,12 @@ class SearchMethod(ABC):
         self.deep_search = deep_search
 
     @abstractmethod
-    def generate_trajectories(self, method: str, length: int | sp.Rational, n: Optional[int] = None):
+    def generate_trajectories(self, n: int, *args):
         raise NotImplementedError
 
-    @abstractmethod
-    def generate_start_points(self, method: str, length: int | sp.Rational, n: Optional[int] = None):
-        raise NotImplementedError
+    # @abstractmethod
+    # def generate_start_points(self, method: str, length: int | sp.Rational, n: Optional[int] = None):
+    #     raise NotImplementedError
 
     @abstractmethod
     def search(self, starts: Optional[Position | List[Position]] = None):
@@ -80,6 +80,6 @@ class SearcherModScheme(Module):
                  version: Optional[str] = None):
         super().__init__(name, description, version)
 
-    @staticmethod
+    @abstractmethod
     def execute(self) -> Dict[Searchable, DataManager]:
         raise NotImplementedError

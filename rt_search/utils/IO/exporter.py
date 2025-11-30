@@ -62,9 +62,8 @@ class Exporter(Generic[T]):
             save_as: Formats = Formats.JSON,
             metadata: Optional[Union[Dict, List]] = None
     ) -> List[str]:
-        formats = ["pickle", "json", "parquet"]
-        if save_as not in formats:
-            raise ValueError(f"save_as must be one of {formats}")
+        if save_as not in Formats:
+            raise ValueError(f"save_as must be one of {[f for f in Formats]}")
 
         d_type = self.__export_type_check(data)
         # match d_type:

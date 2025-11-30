@@ -15,6 +15,7 @@ from scipy.special import gamma, zeta
 class Shard(Searchable):
     def __init__(self,
                  cmf: CMF,
+                 constant: str,
                  A: np.ndarray,
                  b: np.array,
                  shift: Position,
@@ -27,7 +28,7 @@ class Shard(Searchable):
         :param shift: The shift in start points required
         :param symbols: Symbols used by the CMF which this shard is part of
         """
-        super().__init__(cmf)
+        super().__init__(cmf, constant)
         self.A = A
         self.b = b
         self.symbols = symbols
@@ -37,33 +38,35 @@ class Shard(Searchable):
         point = np.array(point.sorted().values())
         return np.all(self.A @ point >= self.b)
 
-    def get_interior_point(self, suspected_point: Optional[Position] = None) -> Optional[Position]:
-        """
-        Find an interior point in the shard.
-        :param suspected_point: a point that is within the shard bounds (might be generated in the extractor)
-        :return: An interior point
-        """
-        if suspected_point is None:
-            xmin = list(-5 * np.ones((len(self.symbols,))))
-            xmax = list(5 * np.ones((len(self.symbols,))))
-        else:
-            xmin = [-3 + suspected_point[sym] for sym in self.symbols]
-            xmax = [3 + suspected_point[sym] for sym in self.symbols]
+    def get_interior_point(self) -> Position:
+        return Position({sym: v for v, sym in zip(self.start_coord, self.symbols)})
+        # """
+        # Find an interior point in the shard.
+        # :param suspected_point: a point that is within the shard bounds (might be generated in the extractor)
+        # :return: An interior point
+        # """
+        # suspected_point = self.start_point
+        # if suspected_point is None:
+        #     xmin = list(-5 * np.ones((len(self.symbols,))))
+        #     xmax = list(5 * np.ones((len(self.symbols,))))
+        # else:
+        #     xmin = [-3 + suspected_point[sym] for sym in self.symbols]
+        #     xmax = [3 + suspected_point[sym] for sym in self.symbols]
+        #
+        # interior_pt = self.__find_integer_point_milp(self.A, self.b_shifted, xmin, xmax)
+        # if interior_pt is None:
+        #     raise Exception('No interior point')
+        # if not np.all(self.A @ interior_pt.T <= self.b):
+        #     raise Exception('Invalid result!')
+        # return Position({sym: v for sym, v in zip(interior_pt, self.symbols)})
 
-        interior_pt = self.__find_integer_point_milp(self.A, self.b, xmin, xmax)
-        if interior_pt is None:
-            raise Exception('No interior point')
-        if not np.all(self.A @ interior_pt.T <= self.b):
-            raise Exception('Invalid result!')
-        return Position({sym: v for sym, v in zip(interior_pt, self.symbols)})
-
-    def sample_trajectories(self, n_samples, *, strict: Optional[bool] = False) -> List[Position]:
+    def sample_trajectories(self, n_samples, *, strict: Optional[bool] = False) -> Set[Position]:
         """
         Sample trajectories from the shard.
         :param n_samples: number of samples to generate
         :param strict: if compute as n_samples, else compute n_samples * fraction.
         (fraction of the cone is taking from the sphere)
-        :return: a list of sampled trajectories
+        :return: a set of sampled trajectories
         """
         R, fraction = self.compute_required_radius(self.A, n_samples)
         if strict:
@@ -73,10 +76,10 @@ class Shard(Searchable):
         else:
             n_samples = int(np.ceil(n_samples * fraction))
         sampler = CHRRSampler(self.A, np.zeros_like(self.b), R=R, thinning=5)
-        return [
+        return {
             Position({sym: v for v, sym in zip(p, self.symbols)})
             for p in sampler.sample(n_samples)
-        ]
+        }
 
     @staticmethod
     def compute_required_radius(A, n_target, sample_count=10_000, safety_factor=1.05):
@@ -242,16 +245,15 @@ class Shard(Searchable):
         return b + (self.A @ S).sum(axis=1)
 
     @cached_property
-    def start_point(self):
-        return self.__find_integer_point_milp(self.A, self.b_shifted)
+    def start_coord(self):
+        return self.__find_integer_point_milp(self.A, self.b_shifted) + self.shift
 
     @cached_property
     def is_valid(self):
-        if self.start_point is None:
+        if self.start_coord is None:
             return False
         _, d = self.A.shape
         return self.__find_integer_point_milp(self.A, np.zeros(d)) is not None
-
 
 # --- Numba Logic ---
 

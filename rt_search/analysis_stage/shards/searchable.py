@@ -2,10 +2,10 @@ from abc import ABC, abstractmethod
 from ramanujantools import Position, Limit
 from ramanujantools.cmf import CMF
 import ramanujantools as rt
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Set
 import sympy as sp
 import LIReC.db.access as db
-from rt_search.system.system import System
+from rt_search.system.constant_transform import *
 import mpmath as mp
 
 
@@ -15,9 +15,10 @@ n = sp.symbols('n')
 
 
 class Searchable(ABC):
-    def __init__(self, cmf: CMF):
+    def __init__(self, cmf: CMF, constant: str):
         self.cache = []
         self.cmf = cmf
+        self.const_name = constant
 
     @abstractmethod
     def in_space(self, point: Position) -> bool:
@@ -97,7 +98,7 @@ class Searchable(ABC):
         print(f'{rt.Matrix([p, q])}')
         return float(delta.evalf(10)), rt.Matrix([p, q]), limit.as_float()
 
-    def compute_trajectory_data(self, traj: Position, start: Position, constant: str,
+    def compute_trajectory_data(self, traj: Position, start: Position,
                                 *, find_limit: bool = False,
                                 find_eigen_values: bool = False,
                                 find_gcd_slope: bool = False,
@@ -128,14 +129,16 @@ class Searchable(ABC):
             sd.gcd_slope = float(sd.gcd_slope)
 
         if not use_LIReC and find_limit:
-            sd.delta = limit.delta(System.get_const_as_sp(constant))
+            sd.initial_values = limit.identify(get_const_as_mpf(self.const_name))
+            sd.delta = limit.delta(get_const_as_mpf(self.const_name))
             if sd.delta in (mp.mpf("inf"), mp.mpf("-inf")):  # TODO: delta is a float!
                 sd.delta = str(sd.delta)
-            sd.initial_values = limit.identify(System.get_const_as_mpf(constant))
         else:
             if not use_LIReC and not find_limit:
                 print('in order to compute delta must find limit - defaulting to using LIReC')
-            sd.delta, sd.initial_values, sd.limit = self.calc_delta(traj, start, System.get_const_as_sp(constant))
+            sd.delta, sd.initial_values, sd.limit = self.calc_delta(traj, start, get_const_as_sp(self.const_name))
+            if sd.delta is not None:
+                sd.LIReC_identify = True
         return sd
 
     @staticmethod
@@ -154,6 +157,6 @@ class Searchable(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    def sample_trajectories(self, n_samples: int) -> List[Position]:
+    def sample_trajectories(self, n_samples: int, *, strict: Optional[bool] = False) -> Set[Position]:
         raise NotImplementedError()
 

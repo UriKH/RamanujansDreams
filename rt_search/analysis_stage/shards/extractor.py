@@ -15,6 +15,7 @@ from rt_search.utils.cmf import CMF
 from concurrent.futures import ProcessPoolExecutor
 from rt_search.analysis_stage.shards.hyperplanes import Hyperplane
 from rt_search.analysis_stage.shards.shard import Shard
+from rt_search.utils.logger import Logger
 
 
 class ShardExtractor:
@@ -43,9 +44,10 @@ class ShardExtractor:
         for v in mat.iter_values():
             if (den := v.as_numer_denom()[1]) == 1:
                 continue
-            solutions = [(den, sol) for sym in den.free_symbols for sol in sp.solve(den, sym)]
+            solutions = {(sym, sol) for sym in den.free_symbols for sol in sp.solve(den, sym)}
             for lhs, rhs in solutions:
                 l.add(Hyperplane(lhs - rhs, symbols))
+            print(l)
 
         # Zero det solutions
         solutions = [tuple(*sol.items()) for sol in sp.solve(mat.det())]
@@ -67,8 +69,8 @@ class ShardExtractor:
         """
         filtered_hps = set()
         for mat in self.cmf.matrices.values():
-            filtered, shifted = self.extract_matrix_hps(mat, self.shift, self.symbols)
-            filtered_hps.add(filtered)
+            filtered = self.extract_matrix_hps(mat, self.shift, self.symbols)
+            filtered_hps.update(filtered)
         return filtered_hps
 
     def extract_shards(self) -> List[Shard]:
@@ -91,8 +93,13 @@ class ShardExtractor:
         # TODO: while enc := bit_comb_generator(len(self.symbols)):
         for enc in shards_encodings:
             A, b, syms = Shard.generate_matrices(list(hps), enc)
-            if (shard := Shard(self.cmf, A, b, self.shift, syms)).is_valid:
+            if (shard := Shard(self.cmf, self.const_name, A, b, self.shift, syms)).is_valid:
                 shards.append(shard)
+            else:
+                Logger(
+                    f'skipping bad shard: {A} < {b} in CMF {self.cmf} with shift {self.shift}',
+                    level=Logger.Levels.inform
+                ).log(msg_prefix='\n')
         return shards
 
 
@@ -103,3 +110,4 @@ if __name__ == '__main__':
     pi = pFq(2, 1, sp.Rational(1, 2))
 
     print(ShardExtractor.extract_matrix_hps(pi.matrices[x0], [x0, x1, y0]))
+

@@ -56,6 +56,7 @@ class AnalyzerModV1(AnalyzerModScheme):
                 Logger(
                     Logger.buffer_print(sys_config.LOGGING_BUFFER_SIZE, f'Current CMF: {t.cmf} with shift {t.shift}', '=')
                 ).log(msg_prefix='\n')
+                # TODO: add option to use mpf - depends on the use_LIReC I guess. maybe there is a way to use only sympy format
                 analyzer = Analyzer(constant, t.cmf, t.shift, System.get_const_as_sp(constant))
                 dim = t.cmf.dim()
                 dms = analyzer.search(

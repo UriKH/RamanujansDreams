@@ -69,7 +69,7 @@ class System:
                 safe_key = "".join(c for c in const if c.isalnum() or c in ('-', '_'))
                 file_path = os.path.join(path, f"{safe_key}.json")
 
-                # Write JSON list to file
+                # # Write JSON list to file
                 with open(file_path, "w", encoding="utf-8") as f:
                     exporter = Exporter[ShiftCMF](file_path)
                     exporter(l)
@@ -92,9 +92,9 @@ class System:
                 file_path = os.path.join(path, f"{safe_key}.json")
 
                 # Write JSON list to file
-                with open(file_path, "w", encoding="utf-8") as f:
-                    exporter = Exporter[Searchable](file_path)
-                    exporter(l)
+                # with open(file_path, "a+", encoding="utf-8") as f:
+                # exporter = Exporter[Searchable](file_path)
+                # exporter(l)
 
         self.__search_stage(priorities)
 
