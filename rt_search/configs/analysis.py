@@ -20,7 +20,7 @@ class AnalysisConfig(Configurable):
 
     NUM_TRAJECTORIES_FROM_DIM: callable = (lambda dim: 10 ** dim)     # #trajectories to analyze given searchable dims
     IDENTIFY_THRESHOLD: float = -1  # consider a shard as related to a constant: threshold > identified_trajectories(%)
-    MAX_EXPANSIONS: int = 3         # Times to expand search for start points beyond the 3 by 3 cube around the origin
+    VALIDATION_BOUND_BOX_DIM: int = 5  # Times to expand search for start points beyond the 3 by 3 cube around the origin
 
     # ============================= Printing and error management =============================
     PRINT_SHARDS: bool = True

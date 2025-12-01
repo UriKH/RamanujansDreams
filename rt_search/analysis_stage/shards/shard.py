@@ -8,10 +8,9 @@ import pulp
 from typing import Union
 import numpy as np
 import time
-from numba import njit, float64, int64, boolean
+from numba import njit
 from scipy.special import gamma, zeta
-from ...utils.logger import Logger
-from scipy.optimize import linprog
+from rt_search.configs.analysis import analysis_config
 
 
 class Shard(Searchable):
@@ -234,7 +233,11 @@ class Shard(Searchable):
 
     @cached_property
     def start_coord(self):
-        res = self.__find_integer_point_milp(self.A, self.b_shifted, xmin=[-5] * 3, xmax=[5] * 3)
+        res = self.__find_integer_point_milp(
+            self.A, self.b_shifted,
+            xmin=[-analysis_config.VALIDATION_BOUND_BOX_DIM] * self.dim,
+            xmax=[analysis_config.VALIDATION_BOUND_BOX_DIM] * self.dim
+        )
         if res is None:
             return None
         return res + self.shift
@@ -244,7 +247,11 @@ class Shard(Searchable):
         if self.start_coord is None:
             return False
         d, _ = self.A.shape
-        return self.__find_integer_point_milp(self.A, np.zeros(d), xmin=[-5] * 3, xmax=[5] * 3) is not None
+        return self.__find_integer_point_milp(
+            self.A, np.zeros(d),
+            xmin=[-analysis_config.VALIDATION_BOUND_BOX_DIM] * self.dim,
+            xmax=[analysis_config.VALIDATION_BOUND_BOX_DIM] * self.dim
+        ) is not None
 
 
 @njit(cache=True)

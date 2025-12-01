@@ -19,8 +19,8 @@ if __name__ == '__main__':
     results = System(
         if_srcs=[
             pFq_formatter(
-                'pi', 2, 1, sp.Rational(1, 2),
-                [sp.Rational(1, 2), sp.Rational(1, 2), sp.Rational(1, 2)]
+                'pi', 3, 1, sp.Rational(1, 2),
+                [sp.Rational(1, 2), sp.Rational(1, 2), sp.Rational(1, 2), sp.Rational(1, 2)]
             )
         ],
         analyzers=[AnalyzerModV1],

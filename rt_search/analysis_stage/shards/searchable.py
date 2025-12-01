@@ -25,6 +25,10 @@ class Searchable(ABC):
     def in_space(self, point: Position) -> bool:
         raise NotImplementedError()
 
+    @property
+    def dim(self):
+        return self.cmf.dim()
+
     def calc_delta(self, traj_m, constant: sp.NumberSymbol) \
             -> Tuple[Optional[float], Optional[rt.Matrix], Optional[float]]:
         """

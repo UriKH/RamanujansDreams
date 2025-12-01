@@ -7,7 +7,6 @@ from rt_search.utils.types import *
 from rt_search.utils.logger import Logger
 from rt_search.configs import (
     sys_config,
-    search_config,
     analysis_config
 )
 

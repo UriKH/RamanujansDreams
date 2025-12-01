@@ -1,7 +1,6 @@
 from abc import ABC, abstractmethod
 import json
 
-from rt_search.utils.types import *
 from rt_search.db_stage.config import *
 
 from . import FORMATTER_REGISTRY

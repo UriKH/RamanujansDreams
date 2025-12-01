@@ -5,14 +5,9 @@ from rt_search.utils.logger import Logger
 from rt_search.utils.types import *
 from rt_search.system.system import System
 from rt_search.system.module import CatchErrorInModule
-from rt_search.configs import (
-    sys_config,
-    analysis_config
-)
+from rt_search.configs import sys_config
 from .config import *
-
 from tqdm import tqdm
-from dataclasses import astuple
 
 
 class AnalyzerModV1(AnalyzerModScheme):
