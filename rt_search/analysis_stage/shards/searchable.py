@@ -67,7 +67,6 @@ class Searchable(ABC):
                 res = db.identify([constant.evalf(300)] + t1_col[1:])
             except:
                 print(f'traj={traj}, start={start}, constant={constant}')
-                raise
             if not res:
                 return None, None, None
 
