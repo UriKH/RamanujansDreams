@@ -18,11 +18,11 @@ class pFq_formatter(Formatter):
     :var shifts: The shifts in starting point in the CMF where a sp.Rational indicates a shift.
     While 0 indicates no shift (None if not doesn't matter).
     """
-    # const: str
+    const: str
     p: int
     q: int
     z: sp.Expr | int
-    shifts: Position
+    shifts: Position | list
 
     def __post_init__(self):
         if self.p <= 0 or self.q <= 0:

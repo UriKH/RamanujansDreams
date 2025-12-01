@@ -4,14 +4,12 @@ import networkx as nx
 from itertools import combinations
 from enum import Enum, auto
 import os
-import json
 
 from ..analysis_stage.shards.searchable import Searchable
 from ..analysis_stage.analysis_scheme import AnalyzerModScheme
 from .errors import UnknownConstant
 from ..db_stage.db_scheme import DBModScheme
 from rt_search.db_stage.funcs.formatter import Formatter
-from ..search_stage.data_manager import DataManager
 from ..search_stage.searcher_scheme import SearcherModScheme
 from ..utils.storage import Exporter, Importer, Formats
 from ..utils.types import *

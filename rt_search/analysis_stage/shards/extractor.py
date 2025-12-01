@@ -2,15 +2,10 @@
 Extractor is responsible for shard creation
 """
 import itertools
-from ramanujantools.position import Position
 from rt_search.utils.types import *
 import sympy as sp
 
-from rt_search.configs import (
-    sys_config,
-    analysis_config
-)
-
+from rt_search.configs import analysis_config
 from concurrent.futures import ProcessPoolExecutor
 from rt_search.analysis_stage.shards.hyperplanes import Hyperplane
 from rt_search.analysis_stage.shards.shard import Shard

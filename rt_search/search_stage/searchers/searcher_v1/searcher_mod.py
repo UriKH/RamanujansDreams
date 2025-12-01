@@ -11,9 +11,7 @@ from rt_search.system.module import CatchErrorInModule
 from rt_search.configs import sys_config
 
 from tqdm import tqdm
-# import queue
 import os
-import json
 
 
 class SearcherModV1(SearcherModScheme):

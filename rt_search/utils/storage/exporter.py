@@ -1,7 +1,6 @@
 import json
 import os
 import pickle as pkl
-import pandas as pd
 from ..types import *
 from .formats import *
 import shutil
