@@ -3,18 +3,14 @@ import json
 
 from rt_search.utils.types import *
 from rt_search.db_stage.config import *
-from rt_search.utils.IO import (
-    imports as imp,
-    exports as ex
-)
-from . import FORMATTER_REGISTRY
-from dataclasses import dataclass
 
-from ...utils.cmf import ShiftCMF
+from . import FORMATTER_REGISTRY
+
+from ...utils.types import *
 
 
 @dataclass
-class Formatter(imp.JSONImportable, ex.JSONExportable):
+class Formatter(ABC):
     const: str
 
     @abstractmethod

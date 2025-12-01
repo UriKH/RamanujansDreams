@@ -1,8 +1,4 @@
 from rt_search.utils.types import *
-from rt_search.utils.IO import (
-    exports as exp,
-    imports as imp
-)
 
 from dataclasses import dataclass, field
 from ramanujantools import Matrix
@@ -10,8 +6,8 @@ import pandas as pd
 from collections import UserDict
 
 
-@dataclass
-class SearchVector(exp.JSONExportable, imp.JSONImportable):
+@dataclass(frozen=True)
+class SearchVector:
     """
     A class representing a search vector in a specific space
     """
@@ -21,20 +17,12 @@ class SearchVector(exp.JSONExportable, imp.JSONImportable):
     def __hash__(self):
         return hash((self.start, self.trajectory))
 
-    def to_json_obj(self):
-        return {'start': self.start.to_json_obj(), 'trajectory': self.trajectory.to_json_obj()}
-
-    @classmethod
-    def from_json_obj(cls, src: dict):
-        return cls(Position.from_json_obj(src['start']), Position.from_json_obj(src['trajectory']))
-
 
 @dataclass
-class SearchData(exp.JSONExportable):
+class SearchData:
     """
     A class representing a search data alongside a specific search vector
     """
-
     sv: SearchVector
     limit: float = None
     delta: float | str = None
@@ -44,20 +32,8 @@ class SearchData(exp.JSONExportable):
     LIReC_identify: bool = False
     errors: Dict[str, Exception | None] = field(default_factory=dict)
 
-    def to_json_obj(self):
-        return {
-            'sv': self.sv.to_json_obj(),
-            'limit': self.limit,
-            'delta': self.delta,
-            'eigen_values': self.eigen_values,
-            'gcd_slope': self.gcd_slope,
-            'initial_values': self.initial_values.tolist(),
-            'LIReC_identify': self.LIReC_identify
-            # 'errors': str(self.errors) # TODO: deal with saving errors
-        }
 
-
-class DataManager(UserDict[SearchVector, SearchData], exp.JSONExportable):
+class DataManager(UserDict[SearchVector, SearchData]):
     """
     DataManager represents a set of results found in a specific search in a CMF
     """
@@ -124,18 +100,3 @@ class DataManager(UserDict[SearchVector, SearchData], exp.JSONExportable):
             for sv, data in self.items()
         ]
         return pd.DataFrame(rows)
-
-    def to_json_obj(self) -> list:
-        return [
-            {
-                "sv": sv.to_json_obj(),
-                "delta": data.delta,
-                "limit": data.limit,
-                "eigen_values":  {str(k): str(v) for k, v in data.eigen_values.items()} if data.eigen_values else None,
-                "gcd_slope": data.gcd_slope,
-                "initial_values": str(data.initial_values.tolist()) if data.initial_values else None,
-                "LIReC_identify": data.LIReC_identify,
-                "errors": [{'where': where, 'type': type(error).__name__, 'msg': str(error)} for where, error in data.errors.items()]
-            }
-            for sv, data in self.items()
-        ]

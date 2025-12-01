@@ -6,19 +6,17 @@ from enum import Enum, auto
 import os
 import json
 
-from ..analysis_stage.subspaces.searchable import Searchable
+from ..analysis_stage.shards.searchable import Searchable
 from ..analysis_stage.analysis_scheme import AnalyzerModScheme
 from .errors import UnknownConstant
 from ..db_stage.db_scheme import DBModScheme
 from rt_search.db_stage.funcs.formatter import Formatter
+from ..search_stage.data_manager import DataManager
 from ..search_stage.searcher_scheme import SearcherModScheme
-from ..utils.IO.exporter import Exporter
+from ..utils.storage import Exporter, Importer, Formats
 from ..utils.types import *
 from ..utils.logger import Logger
-from ..utils.IO.importer import Importer
-from ..configs import (
-    sys_config
-)
+from ..configs import sys_config
 
 
 class System:
@@ -34,7 +32,7 @@ class System:
 
     def __init__(self,
                  if_srcs: List[DBModScheme | str | Formatter],
-                 analyzers: List[Type[AnalyzerModScheme]],
+                 analyzers: List[Type[AnalyzerModScheme] | str | Searchable],
                  searcher: Type[SearcherModScheme]):
         """
         Constructing a system runnable instance for a given combination of modules.
@@ -45,6 +43,7 @@ class System:
         self.if_srcs = if_srcs
         self.analyzers = analyzers
         self.searcher = searcher
+        # self.if_srcs_contain_dbs = any(isin)
 
     def run(self, constants: List[str] | str = None):
         """
@@ -65,14 +64,12 @@ class System:
             for const, l in cmf_data.items():
                 # Sanitize filename (optional, avoids invalid characters)
                 safe_key = "".join(c for c in const if c.isalnum() or c in ('-', '_'))
-                file_path = os.path.join(path, f"{safe_key}.json")
+                path = os.path.join(path, safe_key)
 
-                # Write JSON list to file
-                with open(file_path, "w", encoding="utf-8") as f:
-                    exporter = Exporter[ShiftCMF](file_path)
-                    exporter(l)
-
-                print(f"Saved {file_path}")
+                Exporter.export(path, exists_ok=True, clean_exists=True, data=l, fmt=Formats.PICKLE)
+                Logger(
+                    f'CMFs for {const} exported to {path}', Logger.Levels.info
+                ).log(msg_prefix='\n')
 
         for constant, funcs in cmf_data.items():
             functions = '\n'
@@ -82,40 +79,31 @@ class System:
                 f'Searching for {constant} using inspiration functions: {functions}', Logger.Levels.info
             ).log(msg_prefix='\n')
 
-        analyzers_results = [analyzer(cmf_data).execute() for analyzer in self.analyzers]
-        priorities = self.__aggregate_analyzers(analyzers_results)
-        results = dict()
-        for const in priorities.keys():
-            s = self.searcher(priorities[const], True)
-            results[const] = s.execute()
+        priorities = self.__analysis_stage(cmf_data)
+        if path := sys_config.EXPORT_ANALYSIS_PRIORITIES:
+            os.makedirs(path, exist_ok=True)
 
-        for const in priorities.keys():
-            best_delta = -sp.oo
-            best_sv = None
-            best_space = None
-            for space, dms in results[const].items():
-                delta, sv = dms.best_delta
-                if delta is None:
-                    continue
-                if best_delta < delta:
-                    best_delta, best_sv = delta, sv
-                    best_space = space
-            Logger(
-                f'Best delta for "{const}": {best_delta} in trajectory: {best_sv} in searchable: {best_space}',
-                Logger.Levels.info
-            ).log()
+            for const, l in priorities.items():
+                # Sanitize filename (optional, avoids invalid characters)
+                safe_key = "".join(c for c in const if c.isalnum() or c in ('-', '_'))
+                path = os.path.join(path, safe_key)
+
+                Exporter.export(path, exists_ok=True, clean_exists=True, data=l, fmt=Formats.PICKLE)
+                Logger(
+                    f'Priorities for {const} exported to {path}', Logger.Levels.info
+                ).log(msg_prefix='\n')
+
+        self.__search_stage(priorities)
 
     def __db_stage(self, constants: Dict[str, Any]) -> Dict[str, List[ShiftCMF]]:
         modules = []
-
-        importer = Importer[Formatter]()
         cmf_data = defaultdict(set)
 
         for db in self.if_srcs:
             if isinstance(db, DBModScheme):
                 modules.append(db)
             elif isinstance(db, str):
-                f_data = importer(db, False)
+                f_data = Importer.imprt(db)
                 for obj in f_data:
                     cmf_data[obj.const].add(obj.to_cmf())
             elif isinstance(db, Formatter):
@@ -140,11 +128,67 @@ class System:
             as_list[k] = list(v)
         return as_list
 
-    def __analysis_stage(self):
-        pass
+    def __analysis_stage(self, cmf_data: Dict[str, List[ShiftCMF]]) -> Dict[str, List[Searchable]]:
+        """
+        Preform the analysis stage work
+        :param cmf_data: data produced in the DB stage
+        :return: The results of the analysis
+        """
+        analyzers = []
+        results = defaultdict(set)
 
-    def __search_stage(self):
-        pass
+        for analyzer in self.analyzers:
+            match analyzer:
+                case t if issubclass(t, AnalyzerModScheme):
+                    analyzers.append(analyzer)
+                case Searchable():
+                    results[analyzer.const_name].add(analyzer)
+                case str():
+                    f_data = Importer.imprt(analyzer)
+                    for obj in f_data:
+                        results[obj.const_name].add(obj)
+                case _:
+                    raise TypeError(f'unknown analyzer type {analyzer}')
+
+        analyzers_results = [analyzer(cmf_data).execute() for analyzer in analyzers]
+        priorities = self.__aggregate_analyzers(analyzers_results)
+
+        # add unprioritized elements to the end
+        for c, l in results.items():
+            if c not in priorities:
+                continue
+            diff = results[c].difference(set(cmf_data[c]))
+            priorities[c].extend(diff)
+        return priorities
+
+    def __search_stage(self, priorities: dict[str, List[Searchable]]):
+        # results = dict()
+        for data in priorities.values():
+            self.searcher(data, True).execute()
+            # results[const] = s.execute()
+
+            # if path := sys_config.EXPORT_SEARCH_RESULTS:
+            #     os.makedirs(path, exist_ok=True)
+                # TODO: print result summary for this constant, real export in the searcher class
+
+        for const in priorities.keys():
+            best_delta = -sp.oo
+            best_sv = None
+            best_space = None
+            dir_path = os.path.join(sys_config.EXPORT_SEARCH_RESULTS, const)
+
+            stream_gen = Importer.import_stream(dir_path)
+            for dm in stream_gen:
+                delta, sv = dm.best_delta
+                if delta is None:
+                    continue
+                if best_delta < delta:
+                    best_delta, best_sv = delta, sv
+                    # best_space = space
+            Logger(
+                f'Best delta for "{const}": {best_delta} in trajectory: {best_sv} in searchable: {best_space}',
+                Logger.Levels.info
+            ).log()
 
     @staticmethod
     def validate_constant(constant: str, throw: bool = False) -> bool:

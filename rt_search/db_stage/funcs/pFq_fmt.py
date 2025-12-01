@@ -1,11 +1,10 @@
 import json
 from dataclasses import dataclass, field
-from rt_search.utils.cmf import pFq
+from rt_search.utils.types import *
 
 from rt_search.db_stage.funcs.formatter import Formatter
 from rt_search.utils.types import *
 from . import FORMATTER_REGISTRY
-from rt_search.utils.cmf import ShiftCMF
 
 
 @dataclass
@@ -23,7 +22,7 @@ class pFq_formatter(Formatter):
     p: int
     q: int
     z: sp.Expr | int
-    shifts: Position | List[sp.Expr] = field(default_factory=list)
+    shifts: Position
 
     def __post_init__(self):
         if self.p <= 0 or self.q <= 0:
@@ -33,11 +32,6 @@ class pFq_formatter(Formatter):
 
         if self.p + self.q != len(self.shifts) and len(self.shifts) != 0:
             raise ValueError("Shifts should be of length p + q or 0")
-
-        if len(self.shifts) == 0:
-            self.shifts = Position([0 for _ in range(self.p + self.q)])
-        elif isinstance(self.shifts, list):
-            self.shifts = Position(self.shifts)
 
     @classmethod
     def _from_json_obj(cls, s_json: str) -> "pFq_formatter":
@@ -61,7 +55,7 @@ class pFq_formatter(Formatter):
             "p": self.p,
             "q": self.q,
             "z": str(self.z) if isinstance(self.z, sp.Expr) else self.z,
-            "shifts": [str(shift) if isinstance(shift, sp.Expr) else shift for shift in self.shifts.as_list()]
+            "shifts": [str(shift) if isinstance(shift, sp.Expr) else shift for shift in self.shifts]
         }
 
     def to_cmf(self) -> ShiftCMF:
@@ -70,7 +64,7 @@ class pFq_formatter(Formatter):
         :return: A tuple (CMF, shifts)
         """
         cmf = pFq(self.p, self.q, self.z)
-        self.shifts.set_axis(list(cmf.matrices.keys()))
+        self.shifts = Position({k: v for k, v in zip(cmf.matrices.keys(), self.shifts)})
         return ShiftCMF(cmf, self.shifts)
 
     def __repr__(self):

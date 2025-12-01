@@ -33,7 +33,9 @@ class SystemConfig(Configurable):
             "zeta": mp.zeta,
         }
 
-    EXPORT_CMFS: str = None
+    EXPORT_CMFS: Optional[str] = None
+    EXPORT_ANALYSIS_PRIORITIES: Optional[str] = None
+    EXPORT_SEARCH_RESULTS: Optional[str] = None
 
 
 sys_config: SystemConfig = SystemConfig()

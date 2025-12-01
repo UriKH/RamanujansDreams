@@ -3,7 +3,7 @@ from copy import copy
 import mpmath as mp
 import random
 
-from ..analysis_stage.subspaces.searchable import Searchable
+from ..analysis_stage.shards.searchable import Searchable
 from .data_manager import DataManager
 from ..utils.types import *
 from ..system.module import Module
@@ -41,12 +41,12 @@ class SearchMethod(ABC):
         self.deep_search = deep_search
 
     @abstractmethod
-    def generate_trajectories(self, method: str, length: int | sp.Rational, n: Optional[int] = None):
+    def generate_trajectories(self, n: int, *args):
         raise NotImplementedError
 
-    @abstractmethod
-    def generate_start_points(self, method: str, length: int | sp.Rational, n: Optional[int] = None):
-        raise NotImplementedError
+    # @abstractmethod
+    # def generate_start_points(self, method: str, length: int | sp.Rational, n: Optional[int] = None):
+    #     raise NotImplementedError
 
     @abstractmethod
     def search(self, starts: Optional[Position | List[Position]] = None):
@@ -62,6 +62,8 @@ class SearchMethod(ABC):
 
     @staticmethod
     def pick_fraction(lst: list | set, percentage: float) -> list:
+        if percentage == 1:
+            return lst
         n = len(lst)
         k = round(n * percentage)   # nearest integer
         k = min(max(k, 1), n)       # ensure at least 1 and at most n
@@ -72,7 +74,12 @@ class SearcherModScheme(Module):
     """
     A Scheme for all search modules.
     """
+    # TODO: fix init values and pass the arguments to exec. there should be no need in constructor in subclasses here
+    def __init__(self, name: Optional[str] = None,
+                 description: Optional[str] = None,
+                 version: Optional[str] = None):
+        super().__init__(name, description, version)
 
-    @staticmethod
+    @abstractmethod
     def execute(self) -> Dict[Searchable, DataManager]:
         raise NotImplementedError

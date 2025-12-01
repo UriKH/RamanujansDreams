@@ -5,10 +5,24 @@ import sympy as sp
 
 if __name__ == '__main__':
     config.configure(
-        system={'EXPORT_CMFS': './mycmfs'}
+        system={
+            'EXPORT_CMFS': './mycmfs',
+            'EXPORT_ANALYSIS_PRIORITIES': './mypriorities',
+            'EXPORT_SEARCH_RESULTS': './mysearchresults'
+        },
+        analysis={
+            'IDENTIFY_THRESHOLD': 0,
+            'PARTIAL_SEARCH_FACTOR': 0.2
+        },
+        search={'PARALLEL_SEARCH': True}
     )
     results = System(
-        if_srcs=[pFq_formatter('pi', 2, 1, sp.Rational(1, 2), [0, 0, sp.Rational(1, 2)])],
+        if_srcs=[
+            pFq_formatter(
+                'pi', 2, 1, sp.Rational(1, 2),
+                [sp.Rational(1, 2), sp.Rational(1, 2), sp.Rational(1, 2)]
+            )
+        ],
         analyzers=[AnalyzerModV1],
         searcher=SearcherModV1
     ).run(constants=['pi'])

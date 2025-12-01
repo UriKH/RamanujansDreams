@@ -1,9 +1,15 @@
 import sympy as sp
-from typing import Union, List, Tuple, Dict, Set, Any, FrozenSet, Optional, Type, TextIO, Callable
+from typing import Union, List, Tuple, Dict, Set, Any, Generator, FrozenSet, Optional, Type, TextIO, Callable
+from ramanujantools.cmf import CMF, pFq
+from ramanujantools import Position
+from dataclasses import dataclass, field
 
-from .cmf import CMF, ShiftCMF
 
-from ..utils.geometry.position import Position
+@dataclass(frozen=True)
+class ShiftCMF:
+    cmf: CMF
+    shift: Position
+
 
 Shift = Union[sp.Rational | int | None]     # a shift in starting point
 CMFtup = Tuple[CMF, Position]               # CMF tuple (CMF, list of shifts)

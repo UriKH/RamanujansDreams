@@ -1,4 +1,4 @@
-from .subspaces.searchable import Searchable
+from .shards.searchable import Searchable
 from rt_search.search_stage.data_manager import DataManager
 from rt_search.system.module import Module
 from rt_search.utils.types import *
@@ -14,7 +14,7 @@ class AnalyzerModScheme(Module):
 
 class AnalyzerScheme(ABC):
     @abstractmethod
-    def search(self, method: str, length: int) -> Dict[Searchable, DataManager]:
+    def search(self) -> Dict[Searchable, DataManager]:
         raise NotImplementedError
 
     @abstractmethod

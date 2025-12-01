@@ -2,6 +2,7 @@ import functools
 import time
 import inspect
 from enum import Enum, auto
+from contextlib import contextmanager
 
 
 # TODO: Convert from this logger to the "logging" library
@@ -97,8 +98,12 @@ class Logger:
 
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            Logger(f'executing {func.__name__}', Logger.Levels.info).log()
-            return func(*args, **kwargs)
+            Logger(f'Executing {func.__name__}', Logger.Levels.info).log()
+            start = time.time()
+            res = func(*args, **kwargs)
+            end = time.time()
+            Logger(f'Finished execution {func.__name__} in {end - start} seconds', Logger.Levels.info).log()
+            return res
         return wrapper
 
     @staticmethod
@@ -115,3 +120,17 @@ class Logger:
         if txt_len + 2 * t != 150:
             return f'{char * t} {text} {char * (t + 1)}'
         return f'{char * t} {text} {char * t}'
+
+    @staticmethod
+    @contextmanager
+    def simple_timer(label):
+        """
+        A lightweight generator-based context manager.
+        Useful for quick debugging without needing a class instance.
+        """
+        start = time.perf_counter()
+        try:
+            yield
+        finally:
+            end = time.perf_counter()
+            print(f"{label}: {end - start:.6f} seconds")

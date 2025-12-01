@@ -13,3 +13,4 @@ local_dev/
 *.db
 *.json
 *.cache
+*.pkl
