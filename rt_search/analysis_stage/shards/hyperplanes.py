@@ -37,17 +37,50 @@ class Hyperplane:
         self.linear_term = self.expr - self.free_term
         if self.poly.coeffs()[0] < 1:
             self.linear_term = -self.linear_term
+            self.free_term = -self.free_term
+
+    # def is_in_integer_shift(self) -> bool:
+    #     """
+    #     Checks if the hyperplane passes in shift points.
+    #     :return: True if passes in shift points. False otherwise.
+    #     """
+    #     coeffs = list(self.sym_coef_map.values())
+    #     if (gcd := sp.gcd(coeffs) if coeffs else 0) == 0:
+    #         return self.free_term == 0
+    #     return sp.Abs(self.free_term) % gcd == 0
 
     def is_in_integer_shift(self) -> bool:
         """
-        Checks if the hyperplane passes in shift points.
-        :param shift: shift of each point in the lattice
-        :return: True if passes in shift points. False otherwise.
+        Checks if the hyperplane passes in shift points (Integer Solutions check).
+        Correctly handles Rational coefficients by clearing denominators.
         """
-        coeffs = list(self.sym_coef_map.values())
-        if (gcd := sp.gcd(coeffs) if coeffs else 0) == 0:
+        # 1. Extract ONLY the linear coefficients (exclude the free term!)
+        # We iterate over self.symbols to ensure we don't accidentally grab the '1' key
+        coeffs = [self.sym_coef_map.get(s, sp.Integer(0)) for s in self.symbols]
+
+        # 2. Check for trivial case (0x + 0y + ... = C)
+        # If all coefficients are 0, valid only if free_term is 0
+        if all(c == 0 for c in coeffs):
             return self.free_term == 0
-        return sp.Abs(self.free_term) % gcd == 0
+
+        # 3. Collect all terms to find Common Denominator
+        all_terms = coeffs + [self.free_term]
+
+        # 4. Compute LCM of all denominators
+        common_denom = sp.Integer(1)
+        for val in all_terms:
+            common_denom = sp.lcm(common_denom, sp.denom(val))
+
+        # 5. Scale everything to Integers (Linear Diophantine Equation form)
+        # Equation becomes: A1*x1 + ... + An*xn + C = 0
+        int_coeffs = [sp.Integer(c * common_denom) for c in coeffs]
+        int_free_term = sp.Integer(self.free_term * common_denom)
+
+        # 6. Apply Diophantine Condition
+        # Solution exists iff GCD(A1...An) divides C
+        coeffs_gcd = sp.gcd(int_coeffs)
+
+        return int_free_term % coeffs_gcd == 0
 
     def apply_shift(self, shift: Position) -> 'Hyperplane':
         """

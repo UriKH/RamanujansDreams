@@ -60,7 +60,6 @@ class Shard(Searchable):
         # else:
         #     n_samples = int(np.ceil(n_samples * fraction))
 
-        @Logger.log_exec
         def _estimate_cone_fraction(A, n_trials=5000):
             """Helper to estimate what % of the sphere is covered by the cone."""
             d = A.shape[1]
@@ -342,7 +341,8 @@ def get_chrr_limits(idx, x, A_cols, b, current_Ax, R_sq):
     for val in x: current_norm_sq += val * val
     rem_rad_sq = R_sq - (current_norm_sq - x[idx] ** 2)
 
-    if rem_rad_sq < 0: return 1.0, -1.0
+    if rem_rad_sq < 0:
+        return 1.0, -1.0
 
     limit_r = np.sqrt(rem_rad_sq)
     t_min = max(t_min, -limit_r - x[idx])

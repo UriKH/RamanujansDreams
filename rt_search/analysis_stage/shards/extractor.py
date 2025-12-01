@@ -57,7 +57,6 @@ class ShardExtractor:
             shifted = hp.apply_shift(shift)
             if shifted.is_in_integer_shift():
                 filtered_hps.append(hp)
-                # shifted_hps.append(hp)
         return filtered_hps
 
     def extract_cmf_hps(self):
@@ -110,5 +109,11 @@ if __name__ == '__main__':
     # This is pi 2F1 CMF
     pi = pFq(2, 1, sp.Rational(1, 2))
 
-    print(ShardExtractor.extract_matrix_hps(pi.matrices[x0], [x0, x1, y0]))
-
+    shift = Position({x0: sp.Rational(1, 2), x1: sp.Rational(1,2), y0: sp.Rational(1,2)})
+    from pprint import pprint
+    # pprint(ShardExtractor('pi', pi, shift).extract_cmf_hps())
+    # ppt = ShardExtractor('pi', pi, shift).extract_shards()
+    # pprint(len(ppt))
+    shifted = Hyperplane(x0+1, [x0, x1, y0]).apply_shift(shift)
+    print(shifted.expr)
+    print(shifted.is_in_integer_shift())

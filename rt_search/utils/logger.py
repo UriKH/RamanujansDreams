@@ -98,8 +98,10 @@ class Logger:
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
             Logger(f'Executing {func.__name__}', Logger.Levels.info).log()
+            start = time.time()
             res = func(*args, **kwargs)
-            Logger(f'Finished execution {func.__name__}', Logger.Levels.info).log()
+            end = time.time()
+            Logger(f'Finished execution {func.__name__} in {end - start} seconds', Logger.Levels.info).log()
             return res
         return wrapper
 

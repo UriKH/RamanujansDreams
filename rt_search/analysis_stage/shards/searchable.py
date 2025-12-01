@@ -4,7 +4,7 @@ from ramanujantools.cmf import CMF
 import ramanujantools as rt
 from typing import List, Optional, Tuple, Set
 import sympy as sp
-import LIReC.db.access as db
+from LIReC.db.access import db
 from rt_search.system.constant_transform import *
 import mpmath as mp
 
@@ -65,8 +65,10 @@ class Searchable(ABC):
             try:
                 # mp.mpf.dps = 400
                 res = db.identify([constant.evalf(300)] + t1_col[1:])
-            except:
+            except Exception as e:
                 print(f'traj={traj}, start={start}, constant={constant}')
+                raise Exception(f'LIReC failed with: {e}')
+
             if not res:
                 return None, None, None
 
@@ -102,8 +104,7 @@ class Searchable(ABC):
             raise Exception(f"Probably still rational as denominator is quite small: {denom}")
 
         delta = -1 - sp.log(err) / sp.log(denom)
-        print(f'{rt.Matrix([p, q])}')
-        return float(delta.evalf(10)), rt.Matrix([p, q]), limit.as_float()
+        return float(delta.evalf(10)), rt.Matrix([p, q]), float(limit.as_float())
 
     def compute_trajectory_data(self, traj: Position, start: Position,
                                 *, find_limit: bool = False,
