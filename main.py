@@ -1,5 +1,5 @@
-from rt_search import *
-from rt_search.db_stage.funcs.pFq_fmt import pFq_formatter
+from dreamer import *
+from dreamer.db_stage.funcs.pFq_fmt import pFq_formatter
 import sympy as sp
 
 
@@ -13,8 +13,7 @@ if __name__ == '__main__':
         analysis={
             'IDENTIFY_THRESHOLD': 0,
             'PARTIAL_SEARCH_FACTOR': 0.2
-        },
-        search={'PARALLEL_SEARCH': True}
+        }
     )
     results = System(
         if_srcs=[

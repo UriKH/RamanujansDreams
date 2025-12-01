@@ -1,8 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from rt_search.utils.types import *
-from rt_search.utils.geometry.plane import Plane
+from dreamer.utils.types import *
+from dreamer.utils.geometry.plane import Plane
 
 
 def get_cmap(n, name='hsv'):
