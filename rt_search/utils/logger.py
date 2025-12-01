@@ -2,6 +2,7 @@ import functools
 import time
 import inspect
 from enum import Enum, auto
+from contextlib import contextmanager
 
 
 # TODO: Convert from this logger to the "logging" library
@@ -119,3 +120,17 @@ class Logger:
         if txt_len + 2 * t != 150:
             return f'{char * t} {text} {char * (t + 1)}'
         return f'{char * t} {text} {char * t}'
+
+    @staticmethod
+    @contextmanager
+    def simple_timer(label):
+        """
+        A lightweight generator-based context manager.
+        Useful for quick debugging without needing a class instance.
+        """
+        start = time.perf_counter()
+        try:
+            yield
+        finally:
+            end = time.perf_counter()
+            print(f"{label}: {end - start:.6f} seconds")

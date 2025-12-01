@@ -12,8 +12,9 @@ if __name__ == '__main__':
         },
         analysis={
             'IDENTIFY_THRESHOLD': 0,
-            'PARTIAL_SEARCH_FACTOR': 0.5
-        }
+            'PARTIAL_SEARCH_FACTOR': 0.2
+        },
+        search={'PARALLEL_SEARCH': True}
     )
     results = System(
         if_srcs=[

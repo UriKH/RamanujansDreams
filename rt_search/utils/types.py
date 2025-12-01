@@ -1,5 +1,5 @@
 import sympy as sp
-from typing import Union, List, Tuple, Dict, Set, Any, FrozenSet, Optional, Type, TextIO, Callable
+from typing import Union, List, Tuple, Dict, Set, Any, Generator, FrozenSet, Optional, Type, TextIO, Callable
 from ramanujantools.cmf import CMF, pFq
 from ramanujantools import Position
 from dataclasses import dataclass, field

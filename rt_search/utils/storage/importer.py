@@ -1,7 +1,6 @@
 import json
 import os
 import pickle as pkl
-import pyarrow.parquet as pq
 from .formats import *
 
 
@@ -24,8 +23,6 @@ class Importer:
             case Formats.PICKLE.value:
                 with open(path, 'rb') as f:
                     return pkl.load(f)
-            case Formats.PARQUET.value:
-                return pq.read_table(path).to_pydict()
             case _:
                 raise ValueError(f"File {path} has unsupported format")
 

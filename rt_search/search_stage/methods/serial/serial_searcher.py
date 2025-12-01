@@ -1,4 +1,5 @@
 # from rt_search.analysis_stage.subspaces.searchable import Searchable
+from rt_search.utils.caching import cached_property
 from ...data_manager import *
 from ...searcher_scheme import SearchMethod
 from ...erros import *

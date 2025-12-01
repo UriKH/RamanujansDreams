@@ -58,7 +58,7 @@ class Analyzer(AnalyzerScheme):
                         Logger.Levels.info
                     ).log(msg_prefix='\n')
                 else:
-                    Logger(f'No best delta was found', Logger.Levels.info).log(msg_prefix='\n')
+                    Logger(f'No best delta was found', Logger.Levels.info).log()
         return managers
 
     def prioritize(self, managers: Dict[Searchable, DataManager], ranks=3) -> Dict[Searchable, Dict[str, int]]:

@@ -7,6 +7,7 @@ import sympy as sp
 from LIReC.db.access import db
 from rt_search.system.constant_transform import *
 import mpmath as mp
+from rt_search.utils.logger import Logger
 
 
 from rt_search.search_stage.data_manager import SearchData, SearchVector
@@ -24,7 +25,7 @@ class Searchable(ABC):
     def in_space(self, point: Position) -> bool:
         raise NotImplementedError()
 
-    def calc_delta(self, traj: Position, start: Position, constant: sp.NumberSymbol) \
+    def calc_delta(self, traj_m, constant: sp.NumberSymbol) \
             -> Tuple[Optional[float], Optional[rt.Matrix], Optional[float]]:
         """
         Computes delta for a given trajectory, start point and constant.
@@ -35,7 +36,7 @@ class Searchable(ABC):
         :return: the pair: delta, estimated_value.
         """
         # Do walk
-        traj_m = self.cmf.trajectory_matrix(traj, start)
+        # with Logger.simple_timer('walk'):
         walked = traj_m.walk({n: 1}, 1000, {n: 0})
         walked = walked.inv().T
         t1_col = (walked / walked[0, 0]).col(0)
@@ -48,6 +49,7 @@ class Searchable(ABC):
         values_vec = sp.Matrix(values)
 
         numerator, denom = None, None
+        # with Logger.simple_timer('cahce search'):
         for v1, v2 in self.cache:
             v1 = sp.Matrix(v1).T
             v2 = sp.Matrix(v2).T
@@ -61,12 +63,13 @@ class Searchable(ABC):
                 break
 
         # If cache miss - use LIReC
+        # with Logger.simple_timer('cahce miss'):
         if not cache_hit:
             try:
                 # mp.mpf.dps = 400
                 res = db.identify([constant.evalf(300)] + t1_col[1:])
             except Exception as e:
-                print(f'traj={traj}, start={start}, constant={constant}')
+                # print(f'traj={traj}, start={start}, constant={constant}')
                 raise Exception(f'LIReC failed with: {e}')
 
             if not res:
@@ -75,6 +78,7 @@ class Searchable(ABC):
             coeffs = res[0].to_json()['coeffs']
             p, q = coeffs[0::2], coeffs[1::2]
 
+        # with Logger.simple_timer('check convergence'):
         # Check convergence
         try:
             converge, (_, limit, _) = self._does_converge(traj_m, p, q)
@@ -87,6 +91,7 @@ class Searchable(ABC):
         if not cache_hit:
             self.cache.append((tuple(p), tuple(q)))
 
+        # with Logger.simple_timer('delta computation'):
         # estimate constant
         p = sp.Matrix(p).T
         q = sp.Matrix(q).T
@@ -122,11 +127,13 @@ class Searchable(ABC):
         :param use_LIReC: Use LIReC to compute delta (default)
         :return: SearchData object containing the results of the search.
         """
+        # with Logger.simple_timer('compute_trajectory_matrix'):
         sd = SearchData(SearchVector(start, traj))
         traj_m = self.cmf.trajectory_matrix(
             trajectory=traj,
             start=start
         )
+
         if find_limit:
             limit = traj_m.limit({n: 1}, 2000, {n: 0})
             sd.limit = float(limit.as_float())
@@ -137,14 +144,16 @@ class Searchable(ABC):
             sd.gcd_slope = float(sd.gcd_slope)
 
         if not use_LIReC and find_limit:
+            # with Logger.simple_timer('compute_limit - no LIReC'):
             sd.initial_values = limit.identify(get_const_as_mpf(self.const_name))
             sd.delta = limit.delta(get_const_as_mpf(self.const_name))
             if sd.delta in (mp.mpf("inf"), mp.mpf("-inf")):  # TODO: delta is a float!
                 sd.delta = str(sd.delta)
         else:
+            # with Logger.simple_timer('compute_limit - LIReC'):
             if not use_LIReC and not find_limit:
                 print('in order to compute delta must find limit - defaulting to using LIReC')
-            sd.delta, sd.initial_values, sd.limit = self.calc_delta(traj, start, get_const_as_sp(self.const_name))
+            sd.delta, sd.initial_values, sd.limit = self.calc_delta(traj_m, get_const_as_sp(self.const_name))
             if sd.delta is not None:
                 sd.LIReC_identify = True
         return sd
@@ -154,8 +163,9 @@ class Searchable(ABC):
         l1, l2, l3 = t_mat.limit(
             {n: 1}, [950, 1000, 1050], {n: 0}, initial_values=rt.Matrix([p, q])
         )
-        diff1 = abs(l2.as_float() - l1.as_float())
-        diff2 = abs(l3.as_float() - l2.as_float())
+        l2_float = float(l2.as_float())
+        diff1 = abs(l2_float - float(l1.as_float()))
+        diff2 = abs(float(l3.as_float()) - l2_float)
         if diff1 < 1e-10 and diff2 < 1e-10:
             return True, (l1, l2, l3)
         return False, (l1, l2, l3)

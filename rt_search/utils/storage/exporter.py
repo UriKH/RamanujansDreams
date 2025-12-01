@@ -1,10 +1,11 @@
 import json
 import os
 import pickle as pkl
-import pyarrow.parquet as pq
+import pandas as pd
 from ..types import *
 from .formats import *
 import shutil
+from contextlib import contextmanager
 
 
 class Exporter:
@@ -30,8 +31,6 @@ class Exporter:
 
             # write file
             match fmt:
-                case Formats.PARQUET:
-                    pq.write_table(data, path)
                 case Formats.PICKLE:
                     with open(path, "wb") as f:
                         pkl.dump(data, f)
@@ -53,3 +52,50 @@ class Exporter:
             else:
                 for i, v in enumerate(data):
                     cls.export(root, f'{i+1}', exists_ok=exists_ok, fmt=fmt, data=v)
+
+    @classmethod
+    @contextmanager
+    def export_stream(
+            cls,
+            root: str,
+            exists_ok: bool = True,
+            clean_exists: bool = False,
+            fmt: Formats = Formats.PICKLE
+    ) -> Generator[Callable[[Any], None], None, None]:
+        """
+        Context manager for exporting a stream of data chunks.
+        Yields a function that accepts data and writes it to a new file in the sequence.
+        """
+        # Prepare the directory
+        if os.path.exists(root):
+            if clean_exists:
+                shutil.rmtree(root)
+                os.makedirs(root)
+            elif not exists_ok:
+                # Check if directory is empty, otherwise raise error if exists_ok is False
+                if os.listdir(root):
+                    raise FileExistsError(f"Directory {root} already exists and is not empty")
+        else:
+            os.makedirs(root)
+
+        chunk_id = 0
+
+        def write_chunk(data: Any):
+            nonlocal chunk_id
+            # Use zero-padding (e.g., chunk_0000000001.parquet) to ensure
+            # file system sorting matches logical order.
+            filename = f"chunk_{chunk_id:010d}"
+
+            cls.export(
+                root=root,
+                f_name=filename,
+                exists_ok=True,  # We control the names, so we assume we are safe to write
+                fmt=fmt,
+                data=data
+            )
+            chunk_id += 1
+
+        try:
+            yield write_chunk
+        finally:
+            pass

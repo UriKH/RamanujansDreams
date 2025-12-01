@@ -162,10 +162,10 @@ class System:
         return priorities
 
     def __search_stage(self, priorities: dict[str, List[Searchable]]):
-        results = dict()
-        for const in priorities.keys():
-            s = self.searcher(priorities[const], True)
-            results[const] = s.execute()
+        # results = dict()
+        for data in priorities.values():
+            self.searcher(data, True).execute()
+            # results[const] = s.execute()
 
             # if path := sys_config.EXPORT_SEARCH_RESULTS:
             #     os.makedirs(path, exist_ok=True)
@@ -176,19 +176,15 @@ class System:
             best_sv = None
             best_space = None
             dir_path = os.path.join(sys_config.EXPORT_SEARCH_RESULTS, const)
-            for entry in os.scandir(dir_path):
-                if not entry.is_file():
+
+            stream_gen = Importer.import_stream(dir_path)
+            for dm in stream_gen:
+                delta, sv = dm.best_delta
+                if delta is None:
                     continue
-                # TODO: !!!!!!!!!!!!!!
-                with open(entry.path, "r") as f:
-                    data = json.load(f)
-                    dm = DataManager.from_json_obj(data['result'])
-                    delta, sv = dm.best_delta
-                    if delta is None:
-                        continue
-                    if best_delta < delta:
-                        best_delta, best_sv = delta, sv
-                        # best_space = space
+                if best_delta < delta:
+                    best_delta, best_sv = delta, sv
+                    # best_space = space
             Logger(
                 f'Best delta for "{const}": {best_delta} in trajectory: {best_sv} in searchable: {best_space}',
                 Logger.Levels.info
