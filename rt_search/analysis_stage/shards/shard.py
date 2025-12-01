@@ -10,6 +10,7 @@ import numpy as np
 import time
 from numba import njit, float64, int64, boolean
 from scipy.special import gamma, zeta
+from ...utils.logger import Logger
 
 
 class Shard(Searchable):
@@ -36,11 +37,12 @@ class Shard(Searchable):
 
     def in_space(self, point: Position) -> bool:
         point = np.array(point.sorted().values())
-        return np.all(self.A @ point >= self.b)
+        return np.all(self.A @ point < self.b)
 
     def get_interior_point(self) -> Position:
         return Position({sym: v for v, sym in zip(self.start_coord, self.symbols)})
 
+    @Logger.log_exec
     def sample_trajectories(self, n_samples, *, strict: Optional[bool] = False) -> Set[Position]:
         """
         Sample trajectories from the shard.
@@ -49,18 +51,75 @@ class Shard(Searchable):
         (fraction of the cone is taking from the sphere)
         :return: a set of sampled trajectories
         """
-        R, fraction = self.compute_required_radius(self.A, n_samples)
-        if strict:
-            # Compute the radius with some safety mesures
-            n_samples = np.ceil(int(n_samples / fraction * 1.02))
-            R = self.compute_ball_radius(len(self.symbols), n_samples)
-        else:
-            n_samples = int(np.ceil(n_samples * fraction))
-        sampler = CHRRSampler(self.A, np.zeros_like(self.b), R=R, thinning=5)
+        # R, fraction = self.compute_required_radius(self.A, n_samples, sample_count=500)
+        # if strict:
+        #     # Compute the radius with some safety mesures
+        #     n_samples = np.ceil(int(n_samples / fraction * 1.02))
+        #     R = self.compute_ball_radius(len(self.symbols), n_samples)
+        # else:
+        #     n_samples = int(np.ceil(n_samples * fraction))
 
+        @Logger.log_exec
+        def _estimate_cone_fraction(A, n_trials=5000):
+            """Helper to estimate what % of the sphere is covered by the cone."""
+            d = A.shape[1]
+            # Sample random directions
+            raw = np.random.normal(size=(n_trials, d))
+            # Normalize
+            norms = np.linalg.norm(raw, axis=1, keepdims=True)
+            dirs = raw / norms
+            # Check Ax <= 0 (Cone angular check)
+            projections = dirs @ A.T
+            inside = np.all(projections <= 1e-9, axis=1)
+
+            frac = np.mean(inside)
+
+            # Safety for extremely thin cones to avoid division by zero
+            if frac == 0:
+                return 1.0 / n_trials  # Conservative lower bound
+
+            return frac
+        # 1. Estimate Cone Fraction (Monte Carlo)
+        # We strip this out of the radius function to use it for logic decisions
+        fraction = _estimate_cone_fraction(self.A)
+
+        if strict:
+            # CASE: We need EXACTLY n_samples inside the cone.
+
+            # We need to find an R such that Volume(Cone_R) contains n_samples.
+            # N_cone = N_sphere * fraction
+            # Therefore: N_sphere_equivalent = n_samples / fraction
+
+            # SAFETY MARGIN: This is critical.
+            # If our fraction estimate is off by 1%, we might miss the target.
+            # We pad the target by 20% (1.2) to ensure the volume is definitely large enough.
+            n_target_safe = int((n_samples / fraction) * 1.2)
+
+            # Compute R for this expanded sphere count
+            R = self.compute_ball_radius(len(self.symbols), n_target_safe)
+
+            # We tell the sampler to stop exactly when it hits n_samples
+            target_yield = n_samples
+
+        else:
+            # CASE: We treat n_samples as the "Density" of the full sphere.
+            # We just want whatever naturally falls into the cone.
+
+            # R is calculated for the sphere density
+            R = self.compute_ball_radius(len(self.symbols), n_samples)
+
+            # The expected number of points is roughly N * fraction.
+            # We don't force the sampler to find more than this.
+            target_yield = int(n_samples * fraction * 0.95)
+
+            # Edge case: If cone is tiny, ensure we at least look for 1
+            if target_yield < 1:
+                target_yield = 1
+        sampler = CHRRSampler(self.A, np.zeros_like(self.b), R=R+2, thinning=5)
+        print(f'sampling: {target_yield} points in cone fraction: {fraction} and radius {R}\nmatrix: {self.A}\n')
         return {
             Position({sym: v for v, sym in zip(p, self.symbols)})
-            for p in sampler.sample(n_samples)[0]
+            for p in sampler.sample(target_yield)[0]
         }
 
     @staticmethod
@@ -181,7 +240,7 @@ class Shard(Searchable):
         # no objective, just feasibility: add 0 objective
         prob += 0
         for i in range(m):
-            prob += pulp.lpSum(A[i, j] * vars[j] for j in range(d)) <= b[i]
+            prob += pulp.lpSum(A[i, j] * vars[j] for j in range(d)) <= b[i] - 1e-6
         prob.solve(pulp.PULP_CBC_CMD(msg=False))
         if pulp.LpStatus[prob.status] != 'Optimal':
             return None
@@ -198,8 +257,6 @@ class Shard(Searchable):
             raise ValueError(f"Indicators vector must be 1 (above) or -1 (below)")
 
         symbols = hyperplanes[0].symbols
-        # for hyperplane in hyperplanes:
-        #     symbols.union(hyperplane.linear_term.free_symbols)
         symbols = list(symbols)
         vectors = []
         free_terms = []
@@ -228,7 +285,7 @@ class Shard(Searchable):
 
     @cached_property
     def start_coord(self):
-        res = self.__find_integer_point_milp(self.A, self.b_shifted)
+        res = self.__find_integer_point_milp(self.A, self.b_shifted, xmin=[-5] * 3, xmax=[5] * 3)
         if res is None:
             return None
         return res + self.shift
@@ -237,8 +294,8 @@ class Shard(Searchable):
     def is_valid(self):
         if self.start_coord is None:
             return False
-        _, d = self.A.shape
-        return self.__find_integer_point_milp(self.A, np.zeros(d)) is not None
+        d, _ = self.A.shape
+        return self.__find_integer_point_milp(self.A, np.zeros(d), xmin=[-5] * 3, xmax=[5] * 3) is not None
 
 # --- Numba Logic ---
 
@@ -420,7 +477,7 @@ def chrr_walker(A, A_cols, b, R_sq, start_point, n_desired, thinning, buf_out):
                     dot = 0.0
                     for col in range(d):
                         dot += A[row, col] * temp_int[col]
-                    if dot > b[row]:
+                    if dot >= b[row] - 1e-6:
                         valid_harvest = False
                         break
 
@@ -455,8 +512,9 @@ class CHRRSampler:
         for _ in range(10000):
             # Sample in small box around origin or uniform in R
             cand = np.random.uniform(-self.R/10, self.R/10, size=d)
-            if np.linalg.norm(cand) > self.R: continue
-            if np.all(self.A @ cand <= self.b):
+            if np.linalg.norm(cand) > self.R:
+                continue
+            if np.all(self.A @ cand < self.b):
                 return cand
         raise RuntimeError("Could not find starting point for CHRR. Cone is too thin or closed.")
 

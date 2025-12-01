@@ -63,6 +63,7 @@ class Searchable(ABC):
         # If cache miss - use LIReC
         if not cache_hit:
             try:
+                # mp.mpf.dps = 400
                 res = db.identify([constant.evalf(300)] + t1_col[1:])
             except:
                 print(f'traj={traj}, start={start}, constant={constant}')

@@ -97,8 +97,10 @@ class Logger:
 
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            Logger(f'executing {func.__name__}', Logger.Levels.info).log()
-            return func(*args, **kwargs)
+            Logger(f'Executing {func.__name__}', Logger.Levels.info).log()
+            res = func(*args, **kwargs)
+            Logger(f'Finished execution {func.__name__}', Logger.Levels.info).log()
+            return res
         return wrapper
 
     @staticmethod

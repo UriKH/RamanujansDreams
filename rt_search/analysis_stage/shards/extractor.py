@@ -87,17 +87,20 @@ class ShardExtractor:
                 i += 1
             return None
 
-        shards_encodings = itertools.product((-1, 1), repeat=len(self.symbols)) # TODO: This might take a long time!
+        shards_encodings = itertools.product((-1, 1), repeat=len(hps)) # TODO: This might take a long time!
         # TODO: while enc := bit_comb_generator(len(self.symbols)):
+        skipped = 0
         for enc in shards_encodings:
             A, b, syms = Shard.generate_matrices(list(hps), enc)
             if (shard := Shard(self.cmf, self.const_name, A, b, self.shift, syms)).is_valid:
                 shards.append(shard)
             else:
-                Logger(
-                    f'skipping bad shard: {A} < {b} in CMF {self.cmf} with shift {self.shift}',
-                    level=Logger.Levels.inform
-                ).log(msg_prefix='\n')
+                skipped += 1
+            # else:
+        Logger(
+            f'skipped {skipped} shards in CMF {self.cmf} with shift {self.shift}',
+            level=Logger.Levels.warning
+        ).log(msg_prefix='\n')
         return shards
 
 
