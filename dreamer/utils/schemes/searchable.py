@@ -7,7 +7,7 @@ from LIReC.db.access import db
 from dreamer.utils.constant_transform import *
 import mpmath as mp
 
-
+from dreamer.utils.logger import Logger
 from dreamer.utils.storage.storage_objects import SearchData, SearchVector
 
 n = sp.symbols('n')
@@ -106,9 +106,13 @@ class Searchable(ABC):
         err = sp.Abs(estimated - pi_30000)
         denom = sp.denom(estimated)
         if denom == 1:
-            raise ZeroDivisionError('Denominator 1 caused zero division in delta calculation')
+            # raise ZeroDivisionError('Denominator 1 caused zero division in delta calculation')
+            Logger('Denominator 1 caused zero division in delta calculation', Logger.Levels.warning).log()
+            return None, None, None
         if denom < 1e6:
-            raise Exception(f"Probably still rational as denominator is quite small: {denom}")
+            # raise Exception(f"Probably still rational as denominator is quite small: {denom}")
+            Logger(f"Probably still rational as denominator is quite small: {denom}", Logger.Levels.warning).log()
+            return None, None, None
 
         delta = -1 - sp.log(err) / sp.log(denom)
         return float(delta.evalf(10)), rt.Matrix([p, q]), float(limit.as_float())
