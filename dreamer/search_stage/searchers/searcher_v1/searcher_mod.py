@@ -1,14 +1,14 @@
-from dreamer.analysis_stage.shards.searchable import Searchable
+from dreamer.utils.schemes.searchable import Searchable
 from dreamer.utils.storage import Exporter, Formats
-from ...data_manager import DataManager
-from ...searcher_scheme import SearcherModScheme
+from dreamer.utils.storage.storage_objects import DataManager
+from dreamer.utils.schemes.searcher_scheme import SearcherModScheme
 from ...methods.serial.serial_searcher import SerialSearcher
 from . import config as search_config_local
 from dreamer.configs.search import search_config
 from dreamer.utils.types import *
-from dreamer.system.system import System
-from dreamer.system.module import CatchErrorInModule
-from dreamer.configs import sys_config
+from dreamer.utils.schemes.module import CatchErrorInModule
+from dreamer.utils.constant_transform import *
+
 
 from tqdm import tqdm
 import os
@@ -42,7 +42,7 @@ class SearcherModV1(SearcherModScheme):
 
         with Exporter.export_stream(dir_path, exists_ok=True, clean_exists=True, fmt=Formats.PICKLE) as write_chunk:
             for space in tqdm(self.searchables, desc='Searching the searchable spaces: ', **sys_config.TQDM_CONFIG):
-                searcher = SerialSearcher(space, System.get_const_as_sp(space.const_name), use_LIReC=self.use_LIReC)
+                searcher = SerialSearcher(space, get_const_as_sp(space.const_name), use_LIReC=self.use_LIReC)
                 searcher.generate_trajectories(search_config.NUM_TRAJECTORIES_FROM_DIM(space.cmf.dim()))
                 res = searcher.search(
                     None, partial_search_factor=1,

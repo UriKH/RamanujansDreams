@@ -3,7 +3,7 @@ import mpmath as mp
 from dreamer.configs import (
     sys_config
 )
-from .errors import *
+from dreamer.system.errors import *
 from typing import List
 
 

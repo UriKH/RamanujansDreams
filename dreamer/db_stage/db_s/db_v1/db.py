@@ -3,7 +3,7 @@ from peewee import SqliteDatabase, Model, CharField
 import json
 
 from .config import *
-from ...db_scheme import DBScheme
+from dreamer.utils.schemes.db_scheme import DBScheme
 from dreamer.db_stage.funcs.formatter import Formatter
 from ...errors import *
 from dreamer.db_stage import funcs

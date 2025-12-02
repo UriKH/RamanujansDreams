@@ -1,6 +1,6 @@
 from ramanujantools import Position
 from dataclasses import dataclass
-from dreamer.utils.caching import *
+from dreamer.utils.caching import cached_property
 
 import sympy as sp
 from typing import Tuple, Optional, List

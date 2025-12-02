@@ -1,5 +1,5 @@
 from .db import DB
-from ...db_scheme import DBModScheme
+from dreamer.utils.schemes.db_scheme import DBModScheme
 from ...errors import MissingPath
 from . import config as v1_config
 
@@ -9,10 +9,10 @@ from dreamer.configs import (
     DBUsages
 )
 from dreamer.utils.types import *
-from dreamer.system.module import CatchErrorInModule
+from dreamer.utils.schemes.module import CatchErrorInModule
 
 
-class DBModV1(DBModScheme):
+class BasicDBMod(DBModScheme):
     def __init__(self, path: Optional[str] = v1_config.DEFAULT_PATH, json_path: Optional[str] = None):
         super().__init__(
             description='Database module for inspiration function management',

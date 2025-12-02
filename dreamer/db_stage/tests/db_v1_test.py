@@ -6,7 +6,7 @@ from ramanujantools.cmf import pFq
 
 from db_stage.errors import ConstantAlreadyExists, ConstantDoesNotExist
 from db_stage.funcs.pFq_fmt import pFq_formatter
-from dreamer.db_stage.DBs.db_v1.db import DB
+from dreamer.db_stage.db_s.db_v1.db import DB
 from utils.position import Position
 
 

@@ -1,17 +1,7 @@
-# importing module
-from .db_stage.DBs.db_v1.db_mod import DBModV1
-from .analysis_stage.analyzers.analyzer_v1.analyzer_mod import AnalyzerModV1
-from .search_stage.searchers.searcher_v1.searcher_mod import SearcherModV1
+from . import db_stage, analysis_stage, search_stage, system
+from .system import System
 
-# importing system
-from .system.system import System
-
-# importing errors
-from .db_stage import errors as db_errors
-from .analysis_stage import errors as analysis_errors
-from .system import errors as system_errors
-
-# configs
+# # configs
 from .configs import (
     config,
     sys_config,
@@ -19,3 +9,4 @@ from .configs import (
     analysis_config,
     search_config
 )
+

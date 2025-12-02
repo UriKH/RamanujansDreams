@@ -2,15 +2,15 @@
 Representation of a shard
 """
 from dreamer.analysis_stage.shards.hyperplanes import Hyperplane
-from dreamer.analysis_stage.shards.searchable import *
-from dreamer.utils.caching import *
+from dreamer.utils.schemes.searchable import Searchable
+from dreamer.utils.caching import cached_property
 import pulp
-from typing import Union
 import numpy as np
 import time
 from numba import njit
 from scipy.special import gamma, zeta
 from dreamer.configs.analysis import analysis_config
+from dreamer.utils.types import *
 
 
 class Shard(Searchable):

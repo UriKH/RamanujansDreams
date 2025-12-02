@@ -1,6 +1,6 @@
-from .shards.searchable import Searchable
-from dreamer.search_stage.data_manager import DataManager
-from dreamer.system.module import Module
+from dreamer.utils.schemes.searchable import Searchable
+from dreamer.utils.storage.storage_objects import DataManager
+from dreamer.utils.schemes.module import Module
 from dreamer.utils.types import *
 
 from abc import abstractmethod, ABC

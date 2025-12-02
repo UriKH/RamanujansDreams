@@ -3,10 +3,10 @@ from copy import copy
 import mpmath as mp
 import random
 
-from ..analysis_stage.shards.searchable import Searchable
-from .data_manager import DataManager
-from ..utils.types import *
-from ..system.module import Module
+from dreamer.utils.schemes.searchable import Searchable
+from dreamer.utils.storage.storage_objects import DataManager
+from dreamer.utils.types import *
+from dreamer.utils.schemes.module import Module
 
 
 class SearchMethod(ABC):

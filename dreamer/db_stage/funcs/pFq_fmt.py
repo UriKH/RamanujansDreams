@@ -1,10 +1,7 @@
 import json
-from dataclasses import dataclass, field
-from dreamer.utils.types import *
-
 from dreamer.db_stage.funcs.formatter import Formatter
 from dreamer.utils.types import *
-from . import FORMATTER_REGISTRY
+from .registry import FORMATTER_REGISTRY
 
 
 @dataclass

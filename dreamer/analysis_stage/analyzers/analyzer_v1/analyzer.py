@@ -1,7 +1,7 @@
-from ...analysis_scheme import AnalyzerScheme
-from ...shards.searchable import Searchable
+from dreamer.utils.schemes.analysis_scheme import AnalyzerScheme
+from dreamer.utils.schemes.searchable import Searchable
 from ...shards.extractor import ShardExtractor
-from dreamer.search_stage.data_manager import DataManager
+from dreamer.utils.storage.storage_objects import DataManager
 from dreamer.search_stage.methods.serial.serial_searcher import SerialSearcher
 from dreamer.utils.types import *
 from dreamer.utils.logger import Logger
@@ -52,7 +52,7 @@ class Analyzer(AnalyzerScheme):
             else:
                 if best_delta is not None:
                     Logger(
-                        f'Ignoring shard - identified <= {analysis_config.IDENTIFY_THRESHOLD ** 100}% '
+                        f'Ignoring shard - identified <= {analysis_config.IDENTIFY_THRESHOLD * 100}% '
                         f'of tested trajectories',
                         Logger.Levels.info
                     ).log(msg_prefix='\n')

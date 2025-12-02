@@ -1,20 +1,18 @@
-import mpmath as mp
 from collections import defaultdict
 import networkx as nx
 from itertools import combinations
 from enum import Enum, auto
 import os
 
-from ..analysis_stage.shards.searchable import Searchable
-from ..analysis_stage.analysis_scheme import AnalyzerModScheme
-from .errors import UnknownConstant
-from ..db_stage.db_scheme import DBModScheme
+from dreamer.utils.schemes.searchable import Searchable
+from dreamer.utils.schemes.analysis_scheme import AnalyzerModScheme
+from dreamer.utils.schemes.db_scheme import DBModScheme
 from dreamer.db_stage.funcs.formatter import Formatter
-from ..search_stage.searcher_scheme import SearcherModScheme
+from dreamer.utils.schemes.searcher_scheme import SearcherModScheme
 from ..utils.storage import Exporter, Importer, Formats
 from ..utils.types import *
 from ..utils.logger import Logger
-from ..configs import sys_config
+from ..utils.constant_transform import *
 
 
 class System:
@@ -54,7 +52,7 @@ class System:
         elif isinstance(constants, str):
             constants = [constants]
 
-        constants = self.get_constants(constants)
+        constants = get_constants(constants)
         cmf_data = self.__db_stage(constants)
         if path := sys_config.EXPORT_CMFS:
             os.makedirs(path, exist_ok=True)
@@ -198,70 +196,12 @@ class System:
         :return: True if constant is defined in sympy.
         """
         try:
-            System.get_const_as_sp(constant)
+            get_const_as_sp(constant)
             return True
         except UnknownConstant as e:
             if throw:
                 raise e
             return False
-
-    @staticmethod
-    def get_const_as_mpf(constant: str) -> mp.mpf:
-        """
-        Convert string to a mpmath.mpf value
-        :param constant: Constant name as string
-        :raise UnknownConstant if constant is unknown
-        :return: the mp.mpf value
-        """
-        try:
-            constant = sys_config.SYMPY_TO_MPMATH[constant]
-        except Exception:
-            raise UnknownConstant(constant + UnknownConstant.default_msg)
-
-        pieces = constant.split("-")
-        if len(pieces) == 1:
-            try:
-                return getattr(sp, constant)
-            except Exception:
-                raise UnknownConstant(constant + UnknownConstant.default_msg)
-
-        n = int(pieces[1])
-        try:
-            return getattr(sp, pieces[0])(n)
-        except Exception:
-            raise UnknownConstant(constant + UnknownConstant.default_msg)
-
-    @staticmethod
-    def get_const_as_sp(constant: str):
-        """
-        Convert string to a sympy known value
-        :param constant: Constant name as string
-        :raise UnknownConstant if constant is unknown
-        :return: the sympy constant
-        """
-        pieces = constant.split("-")
-        if len(pieces) == 1:
-            try:
-                return getattr(sp, constant)
-            except Exception:
-                raise UnknownConstant(constant + UnknownConstant.default_msg)
-
-        n = int(pieces[1])
-        try:
-            return getattr(sp, pieces[0])(n)
-        except Exception:
-            raise UnknownConstant(constant + UnknownConstant.default_msg)
-
-    @staticmethod
-    def get_constants(constants: List[str] | str):
-        """
-        Retrieve the constants as sympy constants from strings
-        :param constants: A list of constant names
-        :return: The sympy constants
-        """
-        if isinstance(constants, str):
-            constants = [constants]
-        return {c: System.get_const_as_sp(c) for c in constants}
 
     @staticmethod
     def __aggregate_analyzers(dicts: List[Dict[str, List[Searchable]]]) -> Dict[str, List[Searchable]]:

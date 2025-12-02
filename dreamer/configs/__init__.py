@@ -3,7 +3,6 @@ from .database import db_config, DBUsages
 from .analysis import analysis_config
 from .search import search_config
 from ..utils.logger import Logger
-from .configurable import Configurable
 from typing import Dict, List
 
 
@@ -49,3 +48,12 @@ class ConfigManager:
 
 
 config = ConfigManager()
+
+__all__ = [
+    'config',
+    'sys_config',
+    'db_config',
+    'DBUsages',
+    'analysis_config',
+    'search_config'
+]

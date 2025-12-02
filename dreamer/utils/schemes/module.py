@@ -4,7 +4,7 @@ from typing import Optional
 import functools
 import traceback
 
-from ..utils.logger import Logger
+from dreamer.utils.logger import Logger
 
 
 class CatchErrorInModule:

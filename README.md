@@ -3,33 +3,13 @@
 ## Installation
 For installation as a package run: `pip install git+https://github.com/UriKH/RamanujanDreams.git`  
 
-## System general flow
-The system running flow is similar to the following (WIP)
-
-![CMF system flow (1)](https://github.com/user-attachments/assets/9d527043-e207-40e7-a9a6-2c59b3dc5b6d)
-
 ## Usage
-Interaction with the system is via the System class (`from access import System`) and using the config files.
-For easy usage preform accessing to configs, errors and functionality via `access.py`.
+Interaction with the system is via the System class (`from dreamer import System`) and using the config files.
+Usage example in [colab](https://colab.research.google.com/drive/1t6qo0LBBHTHTQyojXH566cNJRBhziN_3?usp=sharing).
 
-### Usage examples:
-##### main.py
-```
-from rt_search import *
-
-if __name__ =='__main__':
-    config.configure(system={'LOGGING_BUFFER': 160}, analysis={'IDENTIFY_THRESHOLD': 0.1})
-    analysis_config.PRINT_FOR_EVERY_SEARCHABLE = False
-
-    results = System(
-        dbs=[DBModV1(path='./my_database.db', json_path='./my_data.json')],
-        analyzers=[AnalyzerModV1],
-        searcher=SearcherModV1
-    ).run(constants=['pi'])
-```
 **Note:** 
-- The names of the constants should be writen as `sympy` calls them (`sp.pi`, `sp.E`, etc.).
-- If you don't want to load or execute commadns using a JSON file, `json_path` could be ommited from the arguments.
+- The names of the constants should be writen as used in `sympy` (pi - `sp.pi`, E - `sp.E`, etc.).
+- If you don't want to load or execute commands using a JSON file, `json_path` could be omitted from the arguments.
 - Changing configurations could be done in two ways:
   1. Using `config.configure(<config_section> = {<configuration-name> : <new value>})` - that way new configurations could be added to newly developed modules.
   2. Using each section's private configuration e.g. `db_config.USAGE = DBUsage.RETRIEVE_DATA`.
@@ -71,6 +51,8 @@ Or, by using the global configuration manager: `config.configure(<X> = {<propert
 The latter allows the **addition of new configurations**.
 
 
+-------------------
+## Developer Guide (WIP)
 Globally the system looks as follows:
 ```
 RT-CMF-sys

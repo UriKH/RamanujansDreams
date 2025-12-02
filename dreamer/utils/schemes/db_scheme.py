@@ -4,10 +4,10 @@ from typing import DefaultDict
 
 from tqdm import tqdm
 
-from dreamer.system.module import Module, CatchErrorInModule
+from dreamer.utils.schemes.module import Module, CatchErrorInModule
 from dreamer.utils.types import *
 from dreamer.db_stage.funcs.formatter import Formatter
-from ..configs import sys_config
+from dreamer.configs import sys_config
 
 
 class DBModScheme(Module):

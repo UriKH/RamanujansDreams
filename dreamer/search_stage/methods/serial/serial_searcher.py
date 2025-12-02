@@ -1,5 +1,5 @@
-from ...data_manager import *
-from ...searcher_scheme import SearchMethod
+from dreamer.utils.storage.storage_objects import DataManager, SearchVector
+from dreamer.utils.schemes.searcher_scheme import SearchMethod
 from dreamer.utils.types import *
 from dreamer.utils.logger import Logger
 from dreamer.configs import search_config
@@ -8,7 +8,7 @@ import sympy as sp
 import mpmath as mp
 from concurrent.futures import ProcessPoolExecutor
 from functools import partial
-from dreamer.analysis_stage.shards.searchable import Searchable
+from dreamer.utils.schemes.searchable import Searchable
 
 
 class SerialSearcher(SearchMethod):

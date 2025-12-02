@@ -3,7 +3,7 @@ import json
 
 from dreamer.db_stage.config import *
 
-from . import FORMATTER_REGISTRY
+from .registry import FORMATTER_REGISTRY
 
 from ...utils.types import *
 
