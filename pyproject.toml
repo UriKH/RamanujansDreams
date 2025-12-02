@@ -14,7 +14,7 @@ authors = [{ name="Uri K.H." }]
 dependencies = [
     "peewee",
     "sympy",
-    "ramanujantools",
+    "ramanujantools==0.0.4",
     "matplotlib",
     "numpy",
     "mpmath",
