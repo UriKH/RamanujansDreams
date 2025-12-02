@@ -107,11 +107,13 @@ class Searchable(ABC):
         denom = sp.denom(estimated)
         if denom == 1:
             # raise ZeroDivisionError('Denominator 1 caused zero division in delta calculation')
-            Logger('Denominator 1 caused zero division in delta calculation', Logger.Levels.warning).log()
+            Logger(f'Denominator 1 caused zero division in delta calculation for {traj_m}',
+                   Logger.Levels.warning).log()
             return None, None, None
         if denom < 1e6:
             # raise Exception(f"Probably still rational as denominator is quite small: {denom}")
-            Logger(f"Probably still rational as denominator is quite small: {denom}", Logger.Levels.warning).log()
+            Logger(f"Probably still rational as denominator is quite small: {denom} for matrix {traj_m}",
+                   Logger.Levels.warning).log()
             return None, None, None
 
         delta = -1 - sp.log(err) / sp.log(denom)
