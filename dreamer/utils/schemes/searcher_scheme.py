@@ -44,10 +44,6 @@ class SearchMethod(ABC):
     def generate_trajectories(self, n: int, *args):
         raise NotImplementedError
 
-    # @abstractmethod
-    # def generate_start_points(self, method: str, length: int | sp.Rational, n: Optional[int] = None):
-    #     raise NotImplementedError
-
     @abstractmethod
     def search(self, starts: Optional[Position | List[Position]] = None):
         raise NotImplementedError

@@ -180,9 +180,8 @@ class System:
                     continue
                 if best_delta < delta:
                     best_delta, best_sv = delta, sv
-                    # best_space = space
             Logger(
-                f'Best delta for "{const}": {best_delta} in trajectory: {best_sv} in searchable: {best_space}',
+                f'Best delta for "{const}": {best_delta} in trajectory: {best_sv}',
                 Logger.Levels.info
             ).log()
 
