@@ -5,6 +5,7 @@ from ..types import *
 from .formats import *
 import shutil
 from contextlib import contextmanager
+from .storage_objects import DataManager
 
 
 class Exporter:
@@ -48,7 +49,7 @@ class Exporter:
             if isinstance(data, dict):
                 for i, (k, v) in enumerate(data.items()):
                     cls.export(root, f'{k}_{i+1}', exists_ok=exists_ok, fmt=fmt, data=v)
-            else:
+            elif isinstance(data, list):
                 for i, v in enumerate(data):
                     cls.export(root, f'{i+1}', exists_ok=exists_ok, fmt=fmt, data=v)
 
@@ -79,9 +80,9 @@ class Exporter:
 
         chunk_id = 0
 
-        def write_chunk(data: Any):
+        def write_chunk(data: Any) -> None:
             nonlocal chunk_id
-            # Use zero-padding (e.g., chunk_0000000001.parquet) to ensure
+            # Use zero-padding (e.g., chunk_0000000001) to ensure
             # file system sorting matches logical order.
             filename = f"chunk_{chunk_id:010d}"
 

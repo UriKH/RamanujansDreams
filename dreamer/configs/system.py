@@ -15,6 +15,7 @@ class SystemConfig(Configurable):
 
     # ============================== constant mapping ==============================
     SYMPY_TO_MPMATH: Dict[str, mp] = field(default_factory=dict)
+    USE_LIReC: bool = True
 
     def __post_init__(self):
         self.TQDM_CONFIG = {

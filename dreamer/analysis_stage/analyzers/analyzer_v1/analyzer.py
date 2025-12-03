@@ -28,7 +28,7 @@ class Analyzer(AnalyzerScheme):
         for shard in tqdm(self.shards, desc=f'Analyzing shards', **sys_config.TQDM_CONFIG):
             start = shard.get_interior_point()
 
-            searcher = SerialSearcher(shard, self.constant, use_LIReC=analysis_config.USE_LIReC, deep_search=False)
+            searcher = SerialSearcher(shard, self.constant, use_LIReC=analysis_config.USE_LIReC)
             dm = searcher.search(
                 start,
                 find_limit=analysis_config.ANALYZE_LIMIT,

@@ -22,10 +22,10 @@ class SearcherModV1(SearcherModScheme):
     def __init__(self, searchables: List[Searchable], use_LIReC: bool):
         super().__init__(
             searchables,
+            use_LIReC,
             description='Searcher module - orchestrating a deep search within a prioritized list of spaces',
             version='0.0.1'
         )
-        self.use_LIReC = use_LIReC
 
     @CatchErrorInModule(with_trace=sys_config.MODULE_ERROR_SHOW_TRACE, fatal=True)
     def execute(self) -> Dict[Searchable, DataManager]:

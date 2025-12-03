@@ -23,17 +23,15 @@ class SerialSearcher(SearchMethod):
                  constant,  # sympy constant or mp.mpf
                  data_manager: DataManager = None,
                  share_data: bool = True,
-                 use_LIReC: bool = True,
-                 deep_search: bool = True):     # TODO: we don't use deep_search and share_data, for latewr usage...
+                 use_LIReC: bool = True):
         """
         Creates a searcher
         :param space: The space to search in.
         """
-        super().__init__(space, constant, use_LIReC, data_manager, share_data, deep_search)
+        super().__init__(space, constant, use_LIReC, data_manager, share_data)
         self.data_manager = data_manager if data_manager else DataManager(use_LIReC)
         self.const_name = space.const_name
-        self.parallel = ((not self.deep_search and search_config.PARALLEL_TRAJECTORY_MATCHING)
-                         or search_config.PARALLEL_SEARCH)
+        self.parallel = search_config.PARALLEL_SEARCH
         self.pool = ProcessPoolExecutor() if self.parallel else None
 
     def search(self,
@@ -84,14 +82,6 @@ class SerialSearcher(SearchMethod):
                 )
                 self.data_manager[sd.sv] = sd
         return self.data_manager
-
-    def get_data(self, as_df: bool = True) -> List[SearchData] | pd.DataFrame:
-        """
-        :return:
-        """
-        if as_df:
-            return self.data_manager.as_df()
-        return self.data_manager.get_data()
 
     @staticmethod
     def sympy_to_mpmath(x):

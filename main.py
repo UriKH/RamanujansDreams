@@ -2,8 +2,12 @@ from dreamer import System, config
 from dreamer import analysis_stage, search_stage
 from dreamer.db_stage import *
 import sympy as sp
+from functools import partial
+
 
 if __name__ == '__main__':
+    trajectory_compute_func = (lambda d: max(10 ** (d - 1) / 2, 10))
+
     config.configure(
         system={
             'EXPORT_CMFS': './mycmfs',                          # export CMF as objects to directory: ./mycmfs
@@ -13,6 +17,12 @@ if __name__ == '__main__':
         analysis={
             'IDENTIFY_THRESHOLD': 0,            # ignore shards with less than 20% identified trajectories as converge
                                                 # to the constant
+            'NUM_TRAJECTORIES_FROM_DIM': trajectory_compute_func
+            # number of trajectories to be auto generated in analysis
+        },
+        search={
+            'NUM_TRAJECTORIES_FROM_DIM': trajectory_compute_func
+            # number of trajectories to be auto generated in search if needed by the module
         }
     )
     System(

@@ -13,6 +13,7 @@ from ..utils.storage import Exporter, Importer, Formats
 from ..utils.types import *
 from ..utils.logger import Logger
 from ..utils.constant_transform import *
+from functools import partial
 
 
 class System:
@@ -29,7 +30,7 @@ class System:
     def __init__(self,
                  if_srcs: List[DBModScheme | str | Formatter],
                  analyzers: List[Type[AnalyzerModScheme] | str | Searchable],
-                 searcher: Type[SearcherModScheme]):
+                 searcher: Type[SearcherModScheme] | partial[SearcherModScheme]):
         """
         Constructing a system runnable instance for a given combination of modules.
         :param if_srcs: A list of DBModScheme instances used as sources
@@ -160,7 +161,7 @@ class System:
     def __search_stage(self, priorities: dict[str, List[Searchable]]):
         # results = dict()
         for data in priorities.values():
-            self.searcher(data, True).execute()
+            self.searcher(data, sys_config.USE_LIReC).execute()
             # results[const] = s.execute()
 
             # if path := sys_config.EXPORT_SEARCH_RESULTS:
