@@ -13,7 +13,6 @@ if __name__ == '__main__':
         analysis={
             'IDENTIFY_THRESHOLD': 0,            # ignore shards with less than 20% identified trajectories as converge
                                                 # to the constant
-            'PARTIAL_SEARCH_FACTOR': 0.1        # out of auto-generated trajectories, use only 30% in analysis
         }
     )
     System(

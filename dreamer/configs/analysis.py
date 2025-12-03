@@ -29,7 +29,6 @@ class AnalysisConfig(Configurable):
 
     # ============================= Analysis features =============================
     USE_LIReC: bool = True                  # use LIReC in analysis instead of RT functions
-    PARTIAL_SEARCH_FACTOR: float = 0.2      # search only a part of the trajectories generated
     ANALYZE_LIMIT: bool = False             # calculate the limit
     ANALYZE_EIGEN_VALUES: bool = False      # calculate the trajectory matrix eigen values
     ANALYZE_GCD_SLOPE: bool = False         # calculate the gcd slope of the trajectory

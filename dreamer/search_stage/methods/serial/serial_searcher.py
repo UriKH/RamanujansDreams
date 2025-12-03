@@ -38,15 +38,11 @@ class SerialSearcher(SearchMethod):
 
     def search(self,
                starts: Optional[Position | List[Position]] = None,
-               partial_search_factor: float = 1,
                find_limit: bool = True,
                find_eigen_values: bool = True,
                find_gcd_slope: bool = True,
                trajectory_generator: Callable[int, int] = search_config.NUM_TRAJECTORIES_FROM_DIM
                ) -> DataManager:
-
-        if partial_search_factor > 1 or partial_search_factor < 0:
-            raise ValueError("partial_search_factor must be between 0 and 1")
         if not starts:
             starts = self.space.get_interior_point()
         if isinstance(starts, Position):
@@ -56,13 +52,6 @@ class SerialSearcher(SearchMethod):
             trajectory_generator(self.space.dim),
             strict=False
         )
-        if partial_search_factor < 1:
-            trajectories = set(self.pick_fraction(trajectories, partial_search_factor))
-            if len(trajectories) == 0:
-                Logger(
-                    'Too few trajectories, all chosen for search (consider adjusting partial_search_factor)',
-                    Logger.Levels.warning
-                ).log()
 
         pairs = [(t, start) for start in starts for t in trajectories if
                  SearchVector(start, t) not in self.data_manager]

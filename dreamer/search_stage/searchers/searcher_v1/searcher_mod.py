@@ -44,7 +44,7 @@ class SearcherModV1(SearcherModScheme):
             for space in tqdm(self.searchables, desc='Searching the searchable spaces: ', **sys_config.TQDM_CONFIG):
                 searcher = SerialSearcher(space, get_const_as_sp(space.const_name), use_LIReC=self.use_LIReC)
                 res = searcher.search(
-                    None, partial_search_factor=1,
+                    None,
                     find_limit=search_config_local.FIND_LIMIT,
                     find_gcd_slope=search_config_local.FIND_GCD_SLOPE,
                     find_eigen_values=search_config_local.FIND_EIGEN_VALUES
