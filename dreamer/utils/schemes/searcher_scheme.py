@@ -7,6 +7,8 @@ from dreamer.utils.schemes.searchable import Searchable
 from dreamer.utils.storage.storage_objects import DataManager
 from dreamer.utils.types import *
 from dreamer.utils.schemes.module import Module
+from dreamer.utils.storage.storage_objects import SearchData
+import pandas as pd
 
 
 class SearchMethod(ABC):
@@ -41,19 +43,11 @@ class SearchMethod(ABC):
         self.deep_search = deep_search
 
     @abstractmethod
-    def generate_trajectories(self, n: int, *args):
-        raise NotImplementedError
-
-    @abstractmethod
     def search(self, starts: Optional[Position | List[Position]] = None):
         raise NotImplementedError
 
     @abstractmethod
-    def get_data(self):
-        raise NotImplementedError
-
-    @abstractmethod
-    def enrich_trajectories(self):
+    def get_data(self, as_df: bool = True) -> List[SearchData] | pd.DataFrame:
         raise NotImplementedError
 
     @staticmethod
@@ -70,11 +64,11 @@ class SearcherModScheme(Module):
     """
     A Scheme for all search modules.
     """
-    # TODO: fix init values and pass the arguments to exec. there should be no need in constructor in subclasses here
-    def __init__(self, name: Optional[str] = None,
+    def __init__(self, searchables: List[Searchable], name: Optional[str] = None,
                  description: Optional[str] = None,
                  version: Optional[str] = None):
         super().__init__(name, description, version)
+        self.searchables = searchables
 
     @abstractmethod
     def execute(self) -> Dict[Searchable, DataManager]:

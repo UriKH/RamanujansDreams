@@ -11,9 +11,9 @@ if __name__ == '__main__':
             'EXPORT_SEARCH_RESULTS': './mysearchresults'        # export the search results into: ./mysearchresults
         },
         analysis={
-            'IDENTIFY_THRESHOLD': 0.2,          # ignore shards with less than 20% identified trajectories as converge
+            'IDENTIFY_THRESHOLD': 0,            # ignore shards with less than 20% identified trajectories as converge
                                                 # to the constant
-            'PARTIAL_SEARCH_FACTOR': 0.3        # out of auto-generated trajectories, use only 30% in analysis
+            'PARTIAL_SEARCH_FACTOR': 0.1        # out of auto-generated trajectories, use only 30% in analysis
         }
     )
     System(

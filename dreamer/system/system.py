@@ -183,7 +183,7 @@ class System:
             Logger(
                 f'Best delta for "{const}": {best_delta} in trajectory: {best_sv}',
                 Logger.Levels.info
-            ).log()
+            ).log(msg_prefix='\n')
 
     @staticmethod
     def validate_constant(constant: str, throw: bool = False) -> bool:

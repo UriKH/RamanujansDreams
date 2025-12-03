@@ -29,13 +29,13 @@ class Analyzer(AnalyzerScheme):
             start = shard.get_interior_point()
 
             searcher = SerialSearcher(shard, self.constant, use_LIReC=analysis_config.USE_LIReC, deep_search=False)
-            searcher.generate_trajectories(analysis_config.NUM_TRAJECTORIES_FROM_DIM(len(shard.symbols)))
             dm = searcher.search(
                 start,
                 partial_search_factor=analysis_config.PARTIAL_SEARCH_FACTOR,
                 find_limit=analysis_config.ANALYZE_LIMIT,
                 find_gcd_slope=analysis_config.ANALYZE_GCD_SLOPE,
-                find_eigen_values=analysis_config.ANALYZE_EIGEN_VALUES
+                find_eigen_values=analysis_config.ANALYZE_EIGEN_VALUES,
+                trajectory_generator=analysis_config.NUM_TRAJECTORIES_FROM_DIM
             )
 
             identified = dm.identified_percentage

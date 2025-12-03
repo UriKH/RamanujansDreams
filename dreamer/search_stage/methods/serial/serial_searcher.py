@@ -1,9 +1,10 @@
-from dreamer.utils.storage.storage_objects import DataManager, SearchVector
+from dreamer.utils.storage.storage_objects import *
 from dreamer.utils.schemes.searcher_scheme import SearchMethod
 from dreamer.utils.types import *
 from dreamer.utils.logger import Logger
 from dreamer.configs import search_config
 
+import pandas as pd
 import sympy as sp
 import mpmath as mp
 from concurrent.futures import ProcessPoolExecutor
@@ -29,22 +30,21 @@ class SerialSearcher(SearchMethod):
         :param space: The space to search in.
         """
         super().__init__(space, constant, use_LIReC, data_manager, share_data, deep_search)
-        self.trajectories: Set[Position] = set()
         self.data_manager = data_manager if data_manager else DataManager(use_LIReC)
         self.const_name = space.const_name
         self.parallel = ((not self.deep_search and search_config.PARALLEL_TRAJECTORY_MATCHING)
                          or search_config.PARALLEL_SEARCH)
         self.pool = ProcessPoolExecutor() if self.parallel else None
 
-    def generate_trajectories(self, n: int):
-        self.trajectories = self.space.sample_trajectories(n, strict=False)
-
     def search(self,
                starts: Optional[Position | List[Position]] = None,
                partial_search_factor: float = 1,
                find_limit: bool = True,
                find_eigen_values: bool = True,
-               find_gcd_slope: bool = True) -> DataManager:
+               find_gcd_slope: bool = True,
+               trajectory_generator: Callable[int, int] = search_config.NUM_TRAJECTORIES_FROM_DIM
+               ) -> DataManager:
+
         if partial_search_factor > 1 or partial_search_factor < 0:
             raise ValueError("partial_search_factor must be between 0 and 1")
         if not starts:
@@ -52,15 +52,17 @@ class SerialSearcher(SearchMethod):
         if isinstance(starts, Position):
             starts = [starts]
 
-        trajectories = self.trajectories
+        trajectories = self.space.sample_trajectories(
+            trajectory_generator(self.space.dim),
+            strict=False
+        )
         if partial_search_factor < 1:
-            trajectories = set(self.pick_fraction(self.trajectories, partial_search_factor))
+            trajectories = set(self.pick_fraction(trajectories, partial_search_factor))
             if len(trajectories) == 0:
                 Logger(
                     'Too few trajectories, all chosen for search (consider adjusting partial_search_factor)',
                     Logger.Levels.warning
                 ).log()
-                trajectories = self.trajectories
 
         pairs = [(t, start) for start in starts for t in trajectories if
                  SearchVector(start, t) not in self.data_manager]
@@ -94,17 +96,13 @@ class SerialSearcher(SearchMethod):
                 self.data_manager[sd.sv] = sd
         return self.data_manager
 
-    def get_data(self):
+    def get_data(self, as_df: bool = True) -> List[SearchData] | pd.DataFrame:
         """
         :return:
         """
-        """
+        if as_df:
+            return self.data_manager.as_df()
         return self.data_manager.get_data()
-        """
-        raise NotImplementedError
-
-    def enrich_trajectories(self):
-        raise NotImplementedError
 
     @staticmethod
     def sympy_to_mpmath(x):

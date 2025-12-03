@@ -21,10 +21,10 @@ class SearcherModV1(SearcherModScheme):
 
     def __init__(self, searchables: List[Searchable], use_LIReC: bool):
         super().__init__(
+            searchables,
             description='Searcher module - orchestrating a deep search within a prioritized list of spaces',
             version='0.0.1'
         )
-        self.searchables = searchables
         self.use_LIReC = use_LIReC
 
     @CatchErrorInModule(with_trace=sys_config.MODULE_ERROR_SHOW_TRACE, fatal=True)
@@ -43,7 +43,6 @@ class SearcherModV1(SearcherModScheme):
         with Exporter.export_stream(dir_path, exists_ok=True, clean_exists=True, fmt=Formats.PICKLE) as write_chunk:
             for space in tqdm(self.searchables, desc='Searching the searchable spaces: ', **sys_config.TQDM_CONFIG):
                 searcher = SerialSearcher(space, get_const_as_sp(space.const_name), use_LIReC=self.use_LIReC)
-                searcher.generate_trajectories(search_config.NUM_TRAJECTORIES_FROM_DIM(space.cmf.dim()))
                 res = searcher.search(
                     None, partial_search_factor=1,
                     find_limit=search_config_local.FIND_LIMIT,
