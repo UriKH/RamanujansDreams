@@ -50,23 +50,12 @@ class Shard(Searchable):
         (fraction of the cone is taking from the sphere)
         :return: a set of sampled trajectories
         """
-        # R, fraction = self.compute_required_radius(self.A, n_samples, sample_count=500)
-        # if strict:
-        #     # Compute the radius with some safety mesures
-        #     n_samples = np.ceil(int(n_samples / fraction * 1.02))
-        #     R = self.compute_ball_radius(len(self.symbols), n_samples)
-        # else:
-        #     n_samples = int(np.ceil(n_samples * fraction))
-
         def _estimate_cone_fraction(A, n_trials=5000):
             """Helper to estimate what % of the sphere is covered by the cone."""
             d = A.shape[1]
-            # Sample random directions
             raw = np.random.normal(size=(n_trials, d))
-            # Normalize
             norms = np.linalg.norm(raw, axis=1, keepdims=True)
             dirs = raw / norms
-            # Check Ax <= 0 (Cone angular check)
             projections = dirs @ A.T
             inside = np.all(projections <= 1e-9, axis=1)
 
@@ -75,45 +64,25 @@ class Shard(Searchable):
             # Safety for extremely thin cones to avoid division by zero
             if frac == 0:
                 return 1.0 / n_trials  # Conservative lower bound
-
             return frac
-        # 1. Estimate Cone Fraction (Monte Carlo)
-        # We strip this out of the radius function to use it for logic decisions
+
         fraction = _estimate_cone_fraction(self.A)
 
         if strict:
             # CASE: We need EXACTLY n_samples inside the cone.
-
-            # We need to find an R such that Volume(Cone_R) contains n_samples.
-            # N_cone = N_sphere * fraction
-            # Therefore: N_sphere_equivalent = n_samples / fraction
-
-            # SAFETY MARGIN: This is critical.
-            # If our fraction estimate is off by 1%, we might miss the target.
-            # We pad the target by 20% (1.2) to ensure the volume is definitely large enough.
             n_target_safe = int((n_samples / fraction) * 1.2)
-
-            # Compute R for this expanded sphere count
             R = self.compute_ball_radius(len(self.symbols), n_target_safe)
-
-            # We tell the sampler to stop exactly when it hits n_samples
             target_yield = n_samples
-
         else:
             # CASE: We treat n_samples as the "Density" of the full sphere.
-            # We just want whatever naturally falls into the cone.
-
-            # R is calculated for the sphere density
             R = self.compute_ball_radius(len(self.symbols), n_samples)
-
-            # The expected number of points is roughly N * fraction.
-            # We don't force the sampler to find more than this.
-            target_yield = int(n_samples * fraction * 1.05) # Try to over sample
+            # Over sample a small amount in case fraction was underestimated
+            target_yield = int(n_samples * fraction * 1.05)
 
             # Edge case: If cone is tiny, ensure we at least look for 1
             if target_yield < 1:
                 target_yield = 1
-        sampler = CHRRSampler(self.A, np.zeros_like(self.b), R=np.ceil(R*1.5), thinning=5)
+        sampler = CHRRSampler(self.A, np.zeros_like(self.b), R=np.ceil(R+0.5), thinning=5)
         samples, t = sampler.sample(target_yield)
         return {
             Position({sym: v for v, sym in zip(p, self.symbols)})
@@ -140,19 +109,8 @@ class Shard(Searchable):
         --------
         float : The estimated Radius R.
         """
-        # 1. Volume of a Unit Ball in d-dimensions
-        # V_unit = pi^(d/2) / Gamma(d/2 + 1)
         vol_unit_ball = (np.pi ** (d / 2.0)) / gamma(d / 2.0 + 1.0)
-
-        # 2. Density Adjustment
-        # If we want GCD=1, the density of points is 1/zeta(d).
-        # Note: zeta(1) is infinity, but physically 1D density is usually treated as 1 for counts
         density = 1.0 / zeta(d) if d > 1 else 1.0
-
-        # 3. Solve for R
-        # N = Vol_Unit * R^d * Density
-        # R = ( N / (Vol_Unit * Density) ) ^ (1/d)
-
         term = n_samples / (vol_unit_ball * density)
         R = term ** (1.0 / d)
 
@@ -285,7 +243,7 @@ def is_valid_integer_point(point, A, b, R_sq):
     if norm_sq > R_sq or norm_sq == 0: # Exclude origin
         return False
 
-    # 2. Cone Check (Ax <= b)
+    # 2. Cone Check (Ax < b)
     # Manual dot product for speed
     m, d = A.shape
     for i in range(m):
@@ -298,7 +256,6 @@ def is_valid_integer_point(point, A, b, R_sq):
     # 3. GCD Check (Primitive)
     if get_gcd_of_array(point) != 1:
         return False
-
     return True
 
 
@@ -322,8 +279,6 @@ def get_chrr_limits(idx, x, A_cols, b, current_Ax, R_sq):
 
     for row in range(m):
         slope = col_data[row]
-        # rem = b[row] - current_Ax[row] (but slightly safer to recompute if accumulating error?)
-        # For CHRR speed, we usually use the tracked Ax.
         rem = b[row] - current_Ax[row]
 
         if slope > 1e-9:
@@ -439,7 +394,6 @@ def chrr_walker(A, A_cols, b, R_sq, start_point, n_desired, thinning, buf_out):
                 # Store
                 buf_out[found, :] = temp_int[:]
                 found += 1
-
     return steps
 
 
@@ -470,21 +424,10 @@ class CHRRSampler:
         t0 = time.time()
         start_pt = self.find_start_point()
 
-        # Buffer for Numba
         buf = np.zeros((n_samples, self.A.shape[1]), dtype=np.int64)
-
-        # Run Walker
-        # Note: CHRR naturally produces duplicates if the chain stays in the same
-        # "integer cell" for multiple harvest steps.
         chrr_walker(self.A, self.A_cols, self.b, self.R_sq, start_pt, n_samples, self.thinning, buf)
 
-        # Post-process for global Uniqueness
-        # Because CHRR is a chain, we might need to run longer to get *unique* points
-        # So we filter here.
-        # unique_set = set(tuple(x) for x in buf)
-        unique_set = list(tuple(x) for x in buf)
-
-        # Convert back to array
+        unique_set = set(tuple(x) for x in buf)
         final_arr = np.array(list(unique_set))
         return final_arr, time.time() - t0
 

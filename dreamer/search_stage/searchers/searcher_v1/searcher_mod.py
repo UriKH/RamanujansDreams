@@ -47,7 +47,8 @@ class SearcherModV1(SearcherModScheme):
                     None,
                     find_limit=search_config_local.FIND_LIMIT,
                     find_gcd_slope=search_config_local.FIND_GCD_SLOPE,
-                    find_eigen_values=search_config_local.FIND_EIGEN_VALUES
+                    find_eigen_values=search_config_local.FIND_EIGEN_VALUES,
+                    trajectory_generator=search_config.NUM_TRAJECTORIES_FROM_DIM
                 )
                 write_chunk(res)
 

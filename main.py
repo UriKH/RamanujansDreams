@@ -2,7 +2,6 @@ from dreamer import System, config
 from dreamer import analysis_stage, search_stage
 from dreamer.db_stage import *
 import sympy as sp
-from functools import partial
 
 
 if __name__ == '__main__':
