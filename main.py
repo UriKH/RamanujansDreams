@@ -25,7 +25,8 @@ if __name__ == '__main__':
         }
     )
     System(
-        if_srcs=[pFq_formatter('pi', 2, 1, sp.Rational(1, 2), [0, 0, sp.Rational(1, 2)])],
+        if_srcs=[pFq_formatter('zeta-3', 2, 1, sp.Rational(1, 2), [0, 0, sp.Rational(1, 2)]),
+                 pFq_formatter('pi', 2, 1, sp.Rational(1, 2), [0, 0, sp.Rational(1, 2)])],
         analyzers=[analysis_stage.AnalyzerModV1],
         searcher=search_stage.SearcherModV1
-    ).run(constants=['pi'])
+    ).run(constants=['pi', 'zeta-3'])

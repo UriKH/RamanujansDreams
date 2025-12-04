@@ -61,11 +61,11 @@ class System:
             for const, l in cmf_data.items():
                 # Sanitize filename (optional, avoids invalid characters)
                 safe_key = "".join(c for c in const if c.isalnum() or c in ('-', '_'))
-                path = os.path.join(path, safe_key)
+                const_path = os.path.join(path, safe_key)
 
-                Exporter.export(path, exists_ok=True, clean_exists=True, data=l, fmt=Formats.PICKLE)
+                Exporter.export(const_path, exists_ok=True, clean_exists=True, data=l, fmt=Formats.PICKLE)
                 Logger(
-                    f'CMFs for {const} exported to {path}', Logger.Levels.info
+                    f'CMFs for {const} exported to {const_path}', Logger.Levels.info
                 ).log(msg_prefix='\n')
 
         for constant, funcs in cmf_data.items():
@@ -77,20 +77,29 @@ class System:
             ).log(msg_prefix='\n')
 
         priorities = self.__analysis_stage(cmf_data)
+        filtered_priorities = dict()
         if path := sys_config.EXPORT_ANALYSIS_PRIORITIES:
             os.makedirs(path, exist_ok=True)
 
             for const, l in priorities.items():
+                if not l:
+                    Logger(
+                        f'No shards remained after analysis. Run for constant "{const}" is stopped.',
+                        Logger.Levels.warning
+                    ).log(msg_prefix='\n')
+                    continue
+
                 # Sanitize filename (optional, avoids invalid characters)
                 safe_key = "".join(c for c in const if c.isalnum() or c in ('-', '_'))
-                path = os.path.join(path, safe_key)
+                const_path = os.path.join(path, safe_key)
 
-                Exporter.export(path, exists_ok=True, clean_exists=True, data=l, fmt=Formats.PICKLE)
+                Exporter.export(const_path, exists_ok=True, clean_exists=False, data=l, fmt=Formats.PICKLE)
                 Logger(
-                    f'Priorities for {const} exported to {path}', Logger.Levels.info
+                    f'Priorities for {const} exported to {const_path}', Logger.Levels.info
                 ).log(msg_prefix='\n')
+                filtered_priorities[const] = l
 
-        self.__search_stage(priorities)
+        self.__search_stage(filtered_priorities)
 
     def __db_stage(self, constants: Dict[str, Any]) -> Dict[str, List[ShiftCMF]]:
         modules = []
