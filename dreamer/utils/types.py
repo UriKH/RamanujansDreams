@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 class ShiftCMF:
     cmf: CMF
     shift: Position
+    raw: bool = False
 
 
 Shift = Union[sp.Rational | int | None]     # a shift in starting point

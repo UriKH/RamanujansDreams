@@ -5,9 +5,9 @@ import ramanujantools as rt
 from typing import Optional, Tuple, Set
 from LIReC.db.access import db
 from dreamer.utils.constant_transform import *
+from dreamer.utils.constants.constant import Constant
 import mpmath as mp
 
-from dreamer.utils.logger import Logger
 from dreamer.utils.storage.storage_objects import SearchData, SearchVector
 
 n = sp.symbols('n')
@@ -27,7 +27,7 @@ class Searchable(ABC):
     def dim(self):
         return self.cmf.dim()
 
-    def calc_delta(self, traj_m, constant: sp.NumberSymbol) \
+    def calc_delta(self, traj_m, constant: sp.Expr) \
             -> Tuple[Optional[float], Optional[rt.Matrix], Optional[float]]:
         """
         Computes delta for a given trajectory, start point and constant.
@@ -161,7 +161,9 @@ class Searchable(ABC):
             # with Logger.simple_timer('compute_limit - LIReC'):
             if not use_LIReC and not find_limit:
                 print('in order to compute delta must find limit - defaulting to using LIReC')
-            sd.delta, sd.initial_values, sd.limit = self.calc_delta(traj_m, get_const_as_sp(self.const_name))
+            sd.delta, sd.initial_values, sd.limit = self.calc_delta(
+                traj_m, Constant.get_constant(self.const_name).value_sympy
+            )
             if sd.delta is not None:
                 sd.LIReC_identify = True
         return sd

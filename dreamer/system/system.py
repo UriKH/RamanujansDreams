@@ -13,6 +13,7 @@ from ..utils.storage import Exporter, Importer, Formats
 from ..utils.types import *
 from ..utils.logger import Logger
 from ..utils.constant_transform import *
+from ..utils.constants.constant import Constant
 from functools import partial
 
 
@@ -42,7 +43,7 @@ class System:
         self.searcher = searcher
         # self.if_srcs_contain_dbs = any(isin)
 
-    def run(self, constants: List[str] | str = None):
+    def run(self, constants: List[str] | str | Constant | List[Constant] = None):
         """
         Run the system given the constants to search for.
         :param constants: if None, search for constants defined in the configuration file in 'configs.database.py'.
@@ -50,30 +51,46 @@ class System:
         """
         if not constants:
             constants = sys_config.CONSTANTS
-        elif isinstance(constants, str):
+
+        if isinstance(constants, str | Constant):
             constants = [constants]
 
-        constants = get_constants(constants)
+        as_obj = []
+        for c in constants:
+            if isinstance(c, str):
+                if not Constant.is_registered(c):
+                    raise ValueError(f'Constant "{c}" is not a registered constant.')
+                else:
+                    as_obj.append(Constant.get_constant(c))
+            else:
+                as_obj.append(c)
+
+        constants = as_obj
         cmf_data = self.__db_stage(constants)
         if path := sys_config.EXPORT_CMFS:
             os.makedirs(path, exist_ok=True)
 
             for const, l in cmf_data.items():
                 # Sanitize filename (optional, avoids invalid characters)
-                safe_key = "".join(c for c in const if c.isalnum() or c in ('-', '_'))
+                safe_key = "".join(c for c in const.name if c.isalnum() or c in ('-', '_'))
                 const_path = os.path.join(path, safe_key)
+
+                l = [ShiftCMF(scmf.cmf, scmf.shift, True) for scmf in l]
 
                 Exporter.export(const_path, exists_ok=True, clean_exists=True, data=l, fmt=Formats.PICKLE)
                 Logger(
-                    f'CMFs for {const} exported to {const_path}', Logger.Levels.info
+                    f'CMFs for {const.name} exported to {const_path}', Logger.Levels.info
                 ).log(msg_prefix='\n')
 
         for constant, funcs in cmf_data.items():
             functions = '\n'
             for i, func in enumerate(funcs):
-                functions += f'{i+1}. {func}\n'
+                if isinstance(func, Formatter):
+                    functions += f'{i+1}. {func}\n'
+                else:
+                    functions += f'{i+1}. Manually added CMF of dimension={func.cmf.dim()} and shift={func.shift}\n'
             Logger(
-                f'Searching for {constant} using inspiration functions: {functions}', Logger.Levels.info
+                f'Searching for {constant.name} using inspiration functions: {functions}', Logger.Levels.info
             ).log(msg_prefix='\n')
 
         priorities = self.__analysis_stage(cmf_data)
@@ -84,24 +101,24 @@ class System:
             for const, l in priorities.items():
                 if not l:
                     Logger(
-                        f'No shards remained after analysis. Run for constant "{const}" is stopped.',
+                        f'No shards remained after analysis. Run for constant "{const.name}" is stopped.',
                         Logger.Levels.warning
                     ).log(msg_prefix='\n')
                     continue
 
                 # Sanitize filename (optional, avoids invalid characters)
-                safe_key = "".join(c for c in const if c.isalnum() or c in ('-', '_'))
+                safe_key = "".join(c for c in const.name if c.isalnum() or c in ('-', '_'))
                 const_path = os.path.join(path, safe_key)
 
                 Exporter.export(const_path, exists_ok=True, clean_exists=False, data=l, fmt=Formats.PICKLE)
                 Logger(
-                    f'Priorities for {const} exported to {const_path}', Logger.Levels.info
+                    f'Priorities for {const.name} exported to {const_path}', Logger.Levels.info
                 ).log(msg_prefix='\n')
                 filtered_priorities[const] = l
 
         self.__search_stage(filtered_priorities)
 
-    def __db_stage(self, constants: Dict[str, Any]) -> Dict[str, List[ShiftCMF]]:
+    def __db_stage(self, constants: List[Constant]) -> Dict[Constant, List[ShiftCMF]]:
         modules = []
         cmf_data = defaultdict(set)
 
@@ -109,18 +126,17 @@ class System:
             if isinstance(db, DBModScheme):
                 modules.append(db)
             elif isinstance(db, str):
-                f_data = Importer.imprt(db)
-                for obj in f_data:
-                    cmf_data[obj.const].add(obj.to_cmf())
+                shift_cmf = Importer.imprt(db)
+                cmf_data[Constant.get_constant(db.split('/')[-2])].add(shift_cmf)
             elif isinstance(db, Formatter):
-                cmf_data[db.const].add(db.to_cmf())
+                cmf_data[Constant.get_constant(db.const)].add(db.to_cmf())
             else:
                 raise ValueError(f'string is not a json file: {db}')
 
-        cmf_data_2 = DBModScheme.aggregate(modules, list(constants.keys()), True)
+        cmf_data_2 = DBModScheme.aggregate(modules, constants, True)
 
         for const in cmf_data_2.keys():
-            cmf_data[const].union(cmf_data_2[const])
+            cmf_data[const].update(cmf_data_2[const])
 
         # convert back to dict[str, list]
         as_list = dict()
@@ -134,7 +150,7 @@ class System:
             as_list[k] = list(v)
         return as_list
 
-    def __analysis_stage(self, cmf_data: Dict[str, List[ShiftCMF]]) -> Dict[str, List[Searchable]]:
+    def __analysis_stage(self, cmf_data: Dict[Constant, List[ShiftCMF]]) -> Dict[Constant, List[Searchable]]:
         """
         Preform the analysis stage work
         :param cmf_data: data produced in the DB stage
@@ -148,11 +164,11 @@ class System:
                 case t if issubclass(t, AnalyzerModScheme):
                     analyzers.append(analyzer)
                 case Searchable():
-                    results[analyzer.const_name].add(analyzer)
+                    results[analyzer].add(analyzer)
                 case str():
                     f_data = Importer.imprt(analyzer)
                     for obj in f_data:
-                        results[obj.const_name].add(obj)
+                        results[obj].add(obj)
                 case _:
                     raise TypeError(f'unknown analyzer type {analyzer}')
 
@@ -167,7 +183,7 @@ class System:
             priorities[c].extend(diff)
         return priorities
 
-    def __search_stage(self, priorities: dict[str, List[Searchable]]):
+    def __search_stage(self, priorities: Dict[Constant, List[Searchable]]):
         # results = dict()
         for data in priorities.values():
             self.searcher(data, sys_config.USE_LIReC).execute()
@@ -181,7 +197,7 @@ class System:
             best_delta = -sp.oo
             best_sv = None
             best_space = None
-            dir_path = os.path.join(sys_config.EXPORT_SEARCH_RESULTS, const)
+            dir_path = os.path.join(sys_config.EXPORT_SEARCH_RESULTS, const.name)
 
             stream_gen = Importer.import_stream(dir_path)
             for dm in stream_gen:
@@ -191,7 +207,7 @@ class System:
                 if best_delta < delta:
                     best_delta, best_sv = delta, sv
             Logger(
-                f'Best delta for "{const}": {best_delta} in trajectory: {best_sv}',
+                f'Best delta for "{const.name}": {best_delta} in trajectory: {best_sv}',
                 Logger.Levels.info
             ).log(msg_prefix='\n')
 
@@ -205,7 +221,7 @@ class System:
         :return: True if constant is defined in sympy.
         """
         try:
-            get_const_as_sp(constant)
+            Constant.get_constant(constant)
             return True
         except UnknownConstant as e:
             if throw:
@@ -213,7 +229,7 @@ class System:
             return False
 
     @staticmethod
-    def __aggregate_analyzers(dicts: List[Dict[str, List[Searchable]]]) -> Dict[str, List[Searchable]]:
+    def __aggregate_analyzers(dicts: List[Dict[Constant, List[Searchable]]]) -> Dict[Constant, List[Searchable]]:
         """
         Aggregates the priority lists from several analyzers into one
         :param dicts: A list of mappings from constant name to a list of its relevant subspaces

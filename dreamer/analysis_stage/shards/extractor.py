@@ -73,16 +73,7 @@ class ShardExtractor:
         hps = self.extract_cmf_hps()
         shards = []
 
-        def bit_comb_generator(n):
-            i = 0
-            while i < 2 ** n:
-                s = bin(i)[2:].zfill(n)
-                yield [v if (v := int(bit)) == 1 else -1 for bit in s.split('')]
-                i += 1
-            return None
-
-        shards_encodings = itertools.product((-1, 1), repeat=len(hps)) # TODO: This might take a long time!
-        # TODO: while enc := bit_comb_generator(len(self.symbols)):
+        shards_encodings = itertools.product((-1, 1), repeat=len(hps))
         skipped = 0
         for enc in shards_encodings:
             A, b, syms = Shard.generate_matrices(list(hps), enc)
@@ -92,7 +83,7 @@ class ShardExtractor:
                 skipped += 1
             # else:
         Logger(
-            f'skipped {skipped} shards in CMF {self.cmf} with shift {self.shift}',
+            f'skipped {skipped} shards',
             level=Logger.Levels.warning
         ).log(msg_prefix='\n')
         return shards

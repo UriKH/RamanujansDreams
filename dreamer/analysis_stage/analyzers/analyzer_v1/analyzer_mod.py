@@ -5,6 +5,7 @@ from dreamer.utils.logger import Logger
 from dreamer.utils.types import *
 from dreamer.utils.constant_transform import *
 from dreamer.utils.schemes.module import CatchErrorInModule
+from dreamer.utils.constants.constant import Constant
 from dreamer.configs import sys_config
 from .config import *
 from tqdm import tqdm
@@ -15,7 +16,7 @@ class AnalyzerModV1(AnalyzerModScheme):
     The class represents the module for CMF analysis and shard search filtering and prioritization.
     """
 
-    def __init__(self, cmf_data: Dict[str, List[ShiftCMF]]):
+    def __init__(self, cmf_data: Dict[Constant, List[ShiftCMF]]):
         super().__init__(
             description='Module for CMF analysis and shard search filtering and prioritization',
             version='1'
@@ -23,7 +24,7 @@ class AnalyzerModV1(AnalyzerModScheme):
         self.cmf_data = cmf_data
 
     @CatchErrorInModule(with_trace=sys_config.MODULE_ERROR_SHOW_TRACE, fatal=True)
-    def execute(self) -> Dict[str, List[Searchable]]:
+    def execute(self) -> Dict[Constant, List[Searchable]]:
         """
         The main function of the module. It performs the following steps:
         * Store all CMFs
@@ -44,14 +45,20 @@ class AnalyzerModV1(AnalyzerModScheme):
             queue: List[Dict[Searchable, Dict[str, int]]] = []
 
             Logger(
-                Logger.buffer_print(sys_config.LOGGING_BUFFER_SIZE, f'Analyzing for {constant}', '=')
+                Logger.buffer_print(sys_config.LOGGING_BUFFER_SIZE, f'Analyzing for {constant.name}', '=')
             ).log(msg_prefix='\n')
             for t in cmf_tups:
-                Logger(
-                    Logger.buffer_print(sys_config.LOGGING_BUFFER_SIZE, f'Current CMF: {t.cmf} with shift {t.shift}', '=')
-                ).log(msg_prefix='\n')
+                if t.raw:
+                    Logger(
+                        Logger.buffer_print(sys_config.LOGGING_BUFFER_SIZE,
+                                            f'Current CMF is manual with dim={t.cmf.dim()} and shift {t.shift}', '=')
+                    ).log(msg_prefix='\n')
+                else:
+                    Logger(
+                        Logger.buffer_print(sys_config.LOGGING_BUFFER_SIZE, f'Current CMF: {t.cmf} with shift {t.shift}', '=')
+                    ).log(msg_prefix='\n')
                 # TODO: add option to use mpf - depends on the use_LIReC I guess. maybe there is a way to use only sympy format
-                analyzer = Analyzer(constant, t.cmf, t.shift, get_const_as_sp(constant))
+                analyzer = Analyzer(constant.name, t.cmf, t.shift, constant)
                 dms = analyzer.search()
                 queue.append(analyzer.prioritize(dms, PRIORITIZATION_RANKS))
                 # TODO: Now we want to take the DataManagers and convert whose to databases per CMF - I don't know if we really want this or not...

@@ -1,7 +1,9 @@
+import dreamer.db_stage
 from dreamer import System, config
 from dreamer import analysis_stage, search_stage
 from dreamer.db_stage import *
 import sympy as sp
+from dreamer import pi
 
 
 if __name__ == '__main__':
@@ -24,9 +26,16 @@ if __name__ == '__main__':
             # number of trajectories to be auto generated in search if needed by the module
         }
     )
+
+    dreamer.db_stage.DBModScheme.export_future_append_to_json(
+        [
+            pFq_formatter(pi, 2, 1, sp.Rational(1, 2), [0, 0, sp.Rational(1, 2)]),
+            pFq_formatter(pi, 3, 2, sp.Rational(1, 2), [sp.Rational(1, 2)] * 5)
+        ], exits_ok=True
+    )
+
     System(
-        if_srcs=[pFq_formatter('zeta-3', 2, 1, sp.Rational(1, 2), [0, 0, sp.Rational(1, 2)]),
-                 pFq_formatter('pi', 2, 1, sp.Rational(1, 2), [0, 0, sp.Rational(1, 2)])],
+        if_srcs=[pFq_formatter(pi, 2, 1, sp.Rational(1, 2), [0, 0, sp.Rational(1, 2)])],
         analyzers=[analysis_stage.AnalyzerModV1],
         searcher=search_stage.SearcherModV1
-    ).run(constants=['pi', 'zeta-3'])
+    ).run(constants=[pi])

@@ -31,6 +31,10 @@ class SearchData:
     LIReC_identify: bool = False
     errors: Dict[str, Exception | None] = field(default_factory=dict)
 
+    # def to_hdf5(self, filename):
+    #     ...
+    # def
+
 
 class DataManager(UserDict[SearchVector, SearchData]):
     """

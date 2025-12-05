@@ -3,6 +3,7 @@ from dreamer.utils.storage.storage_objects import DataManager
 from dreamer.utils.schemes.searchable import Searchable
 from dreamer.utils.types import *   # for using all the typechecking stuff
 from dreamer.utils.schemes.module import CatchErrorInModule
+from dreamer.utils.constants.constant import Constant
 from dreamer.configs.system import sys_config
 import os
 from tqdm import tqdm
@@ -60,7 +61,7 @@ class MySearchMod(SearcherModScheme):
         with Exporter.export_stream(dir_path, exists_ok=True, clean_exists=True, fmt=Formats.PICKLE) as write_chunk:
             for space in tqdm(self.searchables, desc='Searching the searchable spaces: ', **sys_config.TQDM_CONFIG):
                 searcher = MySearchMethod(
-                    space, get_const_as_sp(space.const_name)    # TODO: add your arguments
+                    space, Constant.get_constant(space.const_name)    # TODO: add your arguments
                 )   # creates an instance of your searcher
                 res = searcher.search(
                     # TODO: all you searcher's arguments here

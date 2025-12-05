@@ -2,15 +2,20 @@ from abc import ABC, abstractmethod
 import json
 
 from dreamer.db_stage.config import *
-
-from .registry import FORMATTER_REGISTRY
+from ...utils.constants.constant import Constant
 
 from ...utils.types import *
 
 
-@dataclass
 class Formatter(ABC):
-    const: str
+    registry: Dict[str, Type['Formatter']] = dict()
+
+    def __init__(self, const: str | Constant):
+        self.const = const.name if isinstance(const, Constant) else const
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        Formatter.registry[cls.__name__] = cls
 
     @abstractmethod
     def __repr__(self):
@@ -28,10 +33,6 @@ class Formatter(ABC):
     def to_cmf(self) -> ShiftCMF:
         raise NotImplementedError
 
-    @classmethod
-    def get_type_name(cls) -> str:
-        return cls.__class__.__name__
-
     def _to_json_obj(self) -> dict:
         return {'const': self.const}
 
@@ -40,18 +41,23 @@ class Formatter(ABC):
     def _from_json_obj(cls, obj: dict | list) -> object:
         raise NotImplementedError
 
+    @classmethod
+    def fetch_from_registry(cls, name: str) -> Type['Formatter']:
+        if name in cls.registry:
+            return Formatter.registry[name]
+        raise KeyError(f'{name} is not registered as a Formatter')
+
     def to_json_obj(self) -> Dict[str, Any]:
         if not issubclass(self.__class__, Formatter):
             raise TypeError(f'Not a Formatter subclass: {type(self)}')
-        return {TYPE_ANNOTATE: self.get_type_name(), DATA_ANNOTATE: self._to_json_obj()}
+        return {TYPE_ANNOTATE: self.__class__.__name__, DATA_ANNOTATE: self._to_json_obj()}
 
     @classmethod
     def from_json_obj(cls, src: dict):
         try:
-            if (src[TYPE_ANNOTATE] not in FORMATTER_REGISTRY or
-                    not issubclass(t := FORMATTER_REGISTRY[src[TYPE_ANNOTATE]], Formatter)):
-                raise TypeError
-            return t._from_json_obj(json.dumps(src[DATA_ANNOTATE]))
+            if src[TYPE_ANNOTATE] not in cls.registry:
+                raise NotImplementedError(f'Not a Formatter subclass: {src[TYPE_ANNOTATE]}')
+            return cls.registry[src[TYPE_ANNOTATE]]._from_json_obj(src[DATA_ANNOTATE])
         except AttributeError:
             raise NotImplementedError(f'constructor for {src[TYPE_ANNOTATE]} is not implemented.'
                                       f' Make sure that the name of the file is the same as the class')

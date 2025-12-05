@@ -1,10 +1,10 @@
 import json
+
+from dreamer.utils.constants.constant import Constant
 from dreamer.db_stage.funcs.formatter import Formatter
 from dreamer.utils.types import *
-from .registry import FORMATTER_REGISTRY
 
 
-@dataclass
 class pFq_formatter(Formatter):
     """
     Represents a pFq and its CMF + allows conversion to and from JSON.
@@ -15,29 +15,27 @@ class pFq_formatter(Formatter):
     :var shifts: The shifts in starting point in the CMF where a sp.Rational indicates a shift.
     While 0 indicates no shift (None if not doesn't matter).
     """
-    const: str
-    p: int
-    q: int
-    z: sp.Expr | int
-    shifts: Position | list
+    def __init__(self, const: str | Constant, p: int, q: int, z: sp.Expr | int, shifts: Position | list):
+        super().__init__(const)
+        self.p = p
+        self.q = q
+        self.z = z
+        self.shifts = shifts
 
-    def __post_init__(self):
         if self.p <= 0 or self.q <= 0:
             raise ValueError("Non-positive values")
         if not isinstance(self.shifts, list) and not isinstance(self.shifts, Position):
             raise ValueError("Shifts should be a list or Position")
-
         if self.p + self.q != len(self.shifts) and len(self.shifts) != 0:
             raise ValueError("Shifts should be of length p + q or 0")
 
     @classmethod
-    def _from_json_obj(cls, s_json: str) -> "pFq_formatter":
+    def _from_json_obj(cls, data: dict | list) -> "pFq_formatter":
         """
         Converts a JSON string to a pFq_formatter.
         :param s_json: The JSON string representation of the pFq_formatter (only attributes).
         :return: A pFq_formatter object.
         """
-        data = json.loads(s_json)
         data['z'] = sp.sympify(data['z']) if isinstance(data['z'], str) else data['z']
         data['shifts'] = [sp.sympify(shift) if isinstance(shift, str) else shift for shift in data['shifts']]
         return cls(**data)
@@ -73,5 +71,3 @@ class pFq_formatter(Formatter):
     def __hash__(self):
         return hash((self.p, self.q, self.z, self.shifts))
 
-
-FORMATTER_REGISTRY['pFq_formatter'] = pFq_formatter

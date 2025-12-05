@@ -1,21 +1,23 @@
+import os.path
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from typing import DefaultDict
-
 from tqdm import tqdm
-
+from dreamer.utils.constants.constant import Constant
 from dreamer.utils.schemes.module import Module, CatchErrorInModule
 from dreamer.utils.types import *
 from dreamer.db_stage.funcs.formatter import Formatter
+from dreamer.db_stage.config import *
 from dreamer.configs import sys_config
+import json
 
 
 class DBModScheme(Module):
     @classmethod
     @CatchErrorInModule(with_trace=sys_config.MODULE_ERROR_SHOW_TRACE, fatal=True)
     def aggregate(cls, dbs: List["DBModScheme"],
-                  constants: Optional[List[str] | str] = None,
-                  close_after_exec: bool = False) -> DefaultDict[str, set[ShiftCMF]]:
+                  constants: Optional[List[Constant] | Constant] = None,
+                  close_after_exec: bool = False) -> DefaultDict[Constant, Set[ShiftCMF]]:
         """
         Aggregate results from multiple DBModConnector instances.
         i.e., combine data from multiple databases
@@ -29,24 +31,48 @@ class DBModScheme(Module):
         for db in tqdm(dbs, desc=f'Extracting data from DBs', **sys_config.TQDM_CONFIG):
             if not issubclass(db.__class__, cls):
                 raise ValueError(f"Invalid DBModConnector instance: {db}")
-            for const, l in db.format_result(db.execute(constants)).items():
+            for const, l in db.execute(constants).items():
                 results[const] = set(results.get(const, []) + l)
             if close_after_exec:
                 del db
         return results
 
     @abstractmethod
-    def format_result(self, result) -> Dict[str, List[ShiftCMF]]:
+    def execute(self, constants: Optional[List[Constant] | Constant] = None) -> Dict[Constant, List[ShiftCMF]] | None:
         raise NotImplementedError
 
-    @abstractmethod
-    def execute(self, constants: Optional[List[str] | str] = None) -> Dict[str, List[ShiftCMF]] | None:
-        raise NotImplementedError
+    @staticmethod
+    def export_future_append_to_json(
+            functions: Optional[Union['Formatter', List['Formatter']]] = None,
+            path: Optional[str] = None,
+            exits_ok: bool = False
+    ) -> Dict[str, Any]:
+        """
+        Export a future command into json
+        :param functions:
+        :param path:
+        :return:
+        """
+        path = path if path else 'command'
+        path = path if path.endswith('.json') else path + '.json'
+
+        if os.path.exists(path) and not exits_ok:
+            raise FileExistsError(f"File {path} already exists")
+
+        if isinstance(functions, Formatter):
+            functions = [functions]
+        jsons = []
+        for func in functions:
+            jsons.append(func.to_json_obj())
+        jsons = {COMMAND_ANNOTATE: DBScheme.append.__name__, DATA_ANNOTATE: jsons}
+        with open(path, 'w') as f:
+            json.dump(jsons, f, indent=4)
+        return jsons
 
 
 class DBScheme(ABC):
     @abstractmethod
-    def select(self, constant: str) -> List[ShiftCMF]:
+    def select(self, constant: Constant) -> List[ShiftCMF]:
         """
         Retrieve the CMFs of the inspiration funcs corresponding to the given constant.
         :param constant: The constant for which to retrieve the CMFs.
@@ -55,7 +81,7 @@ class DBScheme(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def update(self, constant: str, funcs: List[Formatter] | Formatter, replace: bool = False) -> None:
+    def update(self, constant: Constant, funcs: List[Formatter] | Formatter, replace: bool = False) -> None:
         """
         Set the inspiration funcs corresponding to the given constant.
         :param constant: The constant for which to retrieve the CMFs.
@@ -66,8 +92,8 @@ class DBScheme(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def delete(self, constant: str | List[str], funcs: Optional[List[Formatter] | Formatter] = None,
-               delete_const: bool = False) -> List[str] | None:
+    def delete(self, constant: Constant | List[Constant], funcs: Optional[List[Formatter] | Formatter] = None,
+               delete_const: bool = False) -> List[Constant] | None:
         """
         Remove all the funcs from all the constants provided.
         :param constant: A constant or a list of constants to remove from.
@@ -91,4 +117,16 @@ class DBScheme(ABC):
         Execute commands via JSON. View the format in the JSONError class.
         :param path: Path to the JSON file.
         """
+        raise NotImplementedError
+
+    @abstractmethod
+    def replace(self, constant: Constant, funcs: List[Formatter] | Formatter) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def append(self, constant: Constant, funcs: List[Formatter] | Formatter) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def insert(self, constant: Constant, funcs: List[Formatter] | Formatter) -> None:
         raise NotImplementedError
