@@ -6,8 +6,8 @@ from tqdm import tqdm
 from dreamer.utils.constants.constant import Constant
 from dreamer.utils.schemes.module import Module, CatchErrorInModule
 from dreamer.utils.types import *
-from dreamer.db_stage.funcs.formatter import Formatter
-from dreamer.db_stage.config import *
+from dreamer.loading.funcs.formatter import Formatter
+from dreamer.loading.config import *
 from dreamer.configs import sys_config
 import json
 

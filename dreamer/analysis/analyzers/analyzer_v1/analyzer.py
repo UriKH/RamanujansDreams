@@ -2,7 +2,7 @@ from dreamer.utils.schemes.analysis_scheme import AnalyzerScheme
 from dreamer.utils.schemes.searchable import Searchable
 from ...shards.extractor import ShardExtractor
 from dreamer.utils.storage.storage_objects import DataManager
-from dreamer.search_stage.methods.serial.serial_searcher import SerialSearcher
+from dreamer.search.methods.serial.serial_searcher import SerialSearcher
 from dreamer.utils.types import *
 from dreamer.utils.logger import Logger
 from dreamer.configs import (
@@ -41,11 +41,17 @@ class Analyzer(AnalyzerScheme):
             best_delta = dm.best_delta[0]
             if analysis_config.PRINT_FOR_EVERY_SEARCHABLE:
                 if best_delta is None:
-                    Logger(f'Identified {identified * 100:.2f}% of trajectories, best delta: {best_delta}',
-                           Logger.Levels.info).log(msg_prefix='\n')
+                    Logger(
+                        f'Identified {identified * 100:.2f}% of trajectories as containing "{self.constant.name}",'
+                        f' best delta: {best_delta}',
+                        Logger.Levels.info
+                    ).log(msg_prefix='\n')
                 else:
-                    Logger(f'Identified {identified * 100:.2f}% of trajectories, best delta: {best_delta:.4f}',
-                           Logger.Levels.info).log(msg_prefix='\n')
+                    Logger(
+                        f'Identified {identified * 100:.2f}% of trajectories as containing "{self.constant.name}",'
+                        f' best delta: {best_delta:.4f}',
+                        Logger.Levels.info
+                    ).log(msg_prefix='\n')
             if identified > analysis_config.IDENTIFY_THRESHOLD and best_delta is not None:
                 managers[shard] = dm
             else:

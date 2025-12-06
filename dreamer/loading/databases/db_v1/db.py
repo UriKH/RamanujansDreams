@@ -5,10 +5,10 @@ import json
 from .config import *
 from dreamer.utils.schemes.db_scheme import DBScheme
 from dreamer.utils.constants.constant import Constant
-from dreamer.db_stage.funcs.formatter import Formatter
+from dreamer.loading.funcs.formatter import Formatter
 from ...errors import *
-from dreamer.db_stage import funcs
-from dreamer.db_stage.config import *
+from dreamer.loading import funcs
+from dreamer.loading.config import *
 from dreamer.utils.types import *
 from dreamer.system.system import System
 

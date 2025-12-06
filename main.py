@@ -1,9 +1,13 @@
-import dreamer.db_stage
+import mpmath as mp
+mp.dps = 300
+
+
+import dreamer.loading
 from dreamer import System, config
-from dreamer import analysis_stage, search_stage
-from dreamer.db_stage import *
+from dreamer import analysis, search
+from dreamer.loading import *
 import sympy as sp
-from dreamer import pi
+from dreamer import pi, zeta
 
 
 if __name__ == '__main__':
@@ -27,15 +31,15 @@ if __name__ == '__main__':
         }
     )
 
-    dreamer.db_stage.DBModScheme.export_future_append_to_json(
-        [
-            pFq_formatter(pi, 2, 1, sp.Rational(1, 2), [0, 0, sp.Rational(1, 2)]),
-            pFq_formatter(pi, 3, 2, sp.Rational(1, 2), [sp.Rational(1, 2)] * 5)
-        ], exits_ok=True
-    )
+    # dreamer.db_stage.DBModScheme.export_future_append_to_json(
+    #     [
+    #         pFq_formatter(pi, 2, 1, sp.Rational(1, 2), [0, 0, sp.Rational(1, 2)]),
+    #         pFq_formatter(pi, 3, 2, sp.Rational(1, 2), [sp.Rational(1, 2)] * 5)
+    #     ], exits_ok=True
+    # )
 
     System(
         if_srcs=[pFq_formatter(pi, 2, 1, sp.Rational(1, 2), [0, 0, sp.Rational(1, 2)])],
-        analyzers=[analysis_stage.AnalyzerModV1],
-        searcher=search_stage.SearcherModV1
+        analyzers=[analysis.AnalyzerModV1],
+        searcher=search.SearcherModV1
     ).run(constants=[pi])

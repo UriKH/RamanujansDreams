@@ -7,7 +7,7 @@ import os
 from dreamer.utils.schemes.searchable import Searchable
 from dreamer.utils.schemes.analysis_scheme import AnalyzerModScheme
 from dreamer.utils.schemes.db_scheme import DBModScheme
-from dreamer.db_stage.funcs.formatter import Formatter
+from dreamer.loading.funcs.formatter import Formatter
 from dreamer.utils.schemes.searcher_scheme import SearcherModScheme
 from ..utils.storage import Exporter, Importer, Formats
 from ..utils.types import *
@@ -80,12 +80,12 @@ class System:
                 Exporter.export(const_path, exists_ok=True, clean_exists=True, data=l, fmt=Formats.PICKLE)
                 Logger(
                     f'CMFs for {const.name} exported to {const_path}', Logger.Levels.info
-                ).log(msg_prefix='\n')
+                ).log()
 
         for constant, funcs in cmf_data.items():
             functions = '\n'
             for i, func in enumerate(funcs):
-                if isinstance(func, Formatter):
+                if not func.raw:
                     functions += f'{i+1}. {func}\n'
                 else:
                     functions += f'{i+1}. Manually added CMF of dimension={func.cmf.dim()} and shift={func.shift}\n'
@@ -119,6 +119,7 @@ class System:
         self.__search_stage(filtered_priorities)
 
     def __db_stage(self, constants: List[Constant]) -> Dict[Constant, List[ShiftCMF]]:
+        Logger('Loading CMFs ...', Logger.Levels.info).log()
         modules = []
         cmf_data = defaultdict(set)
 
@@ -133,7 +134,9 @@ class System:
             else:
                 raise ValueError(f'string is not a json file: {db}')
 
-        cmf_data_2 = DBModScheme.aggregate(modules, constants, True)
+        cmf_data_2 = dict()
+        if modules:
+            cmf_data_2 = DBModScheme.aggregate(modules, constants, True)
 
         for const in cmf_data_2.keys():
             cmf_data[const].update(cmf_data_2[const])

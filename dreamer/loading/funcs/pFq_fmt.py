@@ -1,7 +1,7 @@
 import json
 
 from dreamer.utils.constants.constant import Constant
-from dreamer.db_stage.funcs.formatter import Formatter
+from dreamer.loading.funcs.formatter import Formatter
 from dreamer.utils.types import *
 
 

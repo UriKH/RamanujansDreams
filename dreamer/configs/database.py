@@ -1,5 +1,5 @@
 """
-Global config file for system flow regarding db_s
+Global config file for system flow regarding databases
 """
 from dataclasses import dataclass
 from enum import Enum, auto
@@ -15,7 +15,7 @@ class DBUsages(Enum):
 
 @dataclass
 class DBConfig(Configurable):
-    USAGE: DBUsages = DBUsages.STORE_THEN_RETRIEVE      # execute db_s retrieve if retrieve is an option
+    USAGE: DBUsages = DBUsages.STORE_THEN_RETRIEVE      # execute databases retrieve if retrieve is an option
 
 
 db_config: DBConfig = DBConfig()

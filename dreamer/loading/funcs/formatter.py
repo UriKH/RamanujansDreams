@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 import json
 
-from dreamer.db_stage.config import *
+from dreamer.loading.config import *
 from ...utils.constants.constant import Constant
 
 from ...utils.types import *

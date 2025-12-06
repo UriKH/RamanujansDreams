@@ -7,8 +7,8 @@ import sympy as sp
 
 from dreamer.configs import analysis_config
 from concurrent.futures import ProcessPoolExecutor
-from dreamer.analysis_stage.shards.hyperplanes import Hyperplane
-from dreamer.analysis_stage.shards.shard import Shard
+from dreamer.analysis.shards.hyperplanes import Hyperplane
+from dreamer.analysis.shards.shard import Shard
 from dreamer.utils.logger import Logger
 
 

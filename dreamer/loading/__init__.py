@@ -1,5 +1,5 @@
-from .db_s.db_v1.db_mod import BasicDBMod, DBModScheme
-from .db_s.db_v1.db import DB
+from .databases.db_v1.db_mod import BasicDBMod, DBModScheme
+from .databases.db_v1.db import DB
 from .funcs.formatter import Formatter
 from .funcs.pFq_fmt import pFq_formatter
 from . import errors

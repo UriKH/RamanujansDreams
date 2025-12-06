@@ -1,7 +1,7 @@
 """
 Representation of a shard
 """
-from dreamer.analysis_stage.shards.hyperplanes import Hyperplane
+from dreamer.analysis.shards.hyperplanes import Hyperplane
 from dreamer.utils.schemes.searchable import Searchable
 from dreamer.utils.caching import cached_property
 import pulp

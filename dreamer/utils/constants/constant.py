@@ -56,9 +56,9 @@ class Constant:
 
     def __rsub__(self, other):
         if isinstance(other, Constant):
-            return Constant(f'{other.name}-{self.name}', self.value_sympy - other.value_sympy)
+            return Constant(f'{other.name}-{self.name}', other.value_sympy - self.value_sympy)
         if isinstance(other, int):
-            return Constant(f'{other}-{self.name}', self.value_sympy - other)
+            return Constant(f'{other}-{self.name}', other - self.value_sympy)
         raise TypeError(f"Unsupported operand for __rsub__: '{type(other)}'")
 
     @staticmethod
