@@ -14,22 +14,12 @@ class SystemConfig(Configurable):
     LOGGING_BUFFER_SIZE: int = 150  # when logging a buffer use width of terminal as 150 characters
 
     # ============================== constant mapping ==============================
-    SYMPY_TO_MPMATH: Dict[str, mp] = field(default_factory=dict)
     USE_LIReC: bool = True
 
     def __post_init__(self):
         self.TQDM_CONFIG = {
             'bar_format': '{desc:<40}' + ' ' * 5 + '{bar} | {elapsed} {rate_fmt} ({percentage:.1f}%)',
             'ncols': 100
-        }
-
-        self.SYMPY_TO_MPMATH = {
-            "pi": mp.pi,
-            "E": mp.e,
-            "EulerGamma": mp.euler,
-            "Catalan": mp.catalan,
-            "GoldenRatio": mp.phi,
-            "zeta": mp.zeta,
         }
 
     EXPORT_CMFS: Optional[str] = None
