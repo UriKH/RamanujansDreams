@@ -209,10 +209,16 @@ class System:
                     continue
                 if best_delta < delta:
                     best_delta, best_sv = delta, sv
-            Logger(
-                f'Best delta for "{const.name}": {best_delta} in trajectory: {best_sv}',
-                Logger.Levels.info
-            ).log(msg_prefix='\n')
+
+            if best_sv is None:
+                # Should not happen
+                Logger('No best delta found').log(msg_prefix='\n')
+            else:
+                Logger(
+                    f'Best delta for "{const.name}" found by the searcher is {best_delta}\n'
+                    f'* Trajectory: {best_sv.trajectory} \n* Start: {best_sv.start}',
+                    Logger.Levels.info
+                ).log(msg_prefix='\n')
 
     @staticmethod
     def validate_constant(constant: str, throw: bool = False) -> bool:

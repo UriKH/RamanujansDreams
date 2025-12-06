@@ -19,8 +19,8 @@ class SystemConfig(Configurable):
 
     def __post_init__(self):
         self.TQDM_CONFIG = {
-            'bar_format': '{desc:<30}' + ' ' * 5 + '{bar} | {elapsed} {rate_fmt} ({percentage:.1f}%)',
-            'ncols': 80
+            'bar_format': '{desc:<40}' + ' ' * 5 + '{bar} | {elapsed} {rate_fmt} ({percentage:.1f}%)',
+            'ncols': 100
         }
 
         self.SYMPY_TO_MPMATH = {

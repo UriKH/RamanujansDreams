@@ -1,7 +1,4 @@
 import mpmath as mp
-mp.dps = 300
-
-
 import dreamer.loading
 from dreamer import System, config
 from dreamer import analysis, search
@@ -10,8 +7,10 @@ import sympy as sp
 from dreamer import pi, zeta
 
 
+mp.dps = 300
+
 if __name__ == '__main__':
-    trajectory_compute_func = (lambda d: max(10 ** (d - 1) / 2, 10))
+    trajectory_compute_func = (lambda d: max(10 ** (d - 1), 10))
 
     config.configure(
         system={
