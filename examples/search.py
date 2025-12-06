@@ -8,7 +8,6 @@ from dreamer.configs.system import sys_config
 import os
 from tqdm import tqdm
 from dreamer.utils.storage.exporter import Exporter, Formats
-from dreamer.utils.constant_transform import get_const_as_sp
 
 
 class MySearchMethod(SearchMethod):

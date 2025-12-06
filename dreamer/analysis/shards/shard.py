@@ -11,12 +11,13 @@ from numba import njit
 from scipy.special import gamma, zeta
 from dreamer.configs.analysis import analysis_config
 from dreamer.utils.types import *
+from dreamer.utils.constants.constant import Constant
 
 
 class Shard(Searchable):
     def __init__(self,
                  cmf: CMF,
-                 constant: str,
+                 constant: Constant,
                  A: np.ndarray,
                  b: np.array,
                  shift: Position,

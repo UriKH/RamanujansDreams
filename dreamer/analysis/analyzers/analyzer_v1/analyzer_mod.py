@@ -3,7 +3,6 @@ from .analyzer import Analyzer
 from dreamer.utils.schemes.searchable import Searchable
 from dreamer.utils.logger import Logger
 from dreamer.utils.types import *
-from dreamer.utils.constant_transform import *
 from dreamer.utils.schemes.module import CatchErrorInModule
 from dreamer.utils.constants.constant import Constant
 from dreamer.configs import sys_config
@@ -58,7 +57,7 @@ class AnalyzerModV1(AnalyzerModScheme):
                         Logger.buffer_print(sys_config.LOGGING_BUFFER_SIZE, f'Current CMF: {t.cmf} with shift {t.shift}', '=')
                     ).log(msg_prefix='\n')
                 # TODO: add option to use mpf - depends on the use_LIReC I guess. maybe there is a way to use only sympy format
-                analyzer = Analyzer(constant.name, t.cmf, t.shift, constant)
+                analyzer = Analyzer(constant, t.cmf, t.shift, constant)
                 dms = analyzer.search()
                 queue.append(analyzer.prioritize(dms, PRIORITIZATION_RANKS))
                 # TODO: Now we want to take the DataManagers and convert whose to databases per CMF - I don't know if we really want this or not...

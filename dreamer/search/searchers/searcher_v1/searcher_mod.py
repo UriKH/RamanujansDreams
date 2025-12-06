@@ -7,8 +7,6 @@ from . import config as search_config_local
 from dreamer.configs.search import search_config
 from dreamer.utils.types import *
 from dreamer.utils.schemes.module import CatchErrorInModule
-from dreamer.utils.constant_transform import *
-from dreamer.utils.constants.constant import Constant
 
 
 from tqdm import tqdm
@@ -33,7 +31,7 @@ class SearcherModV1(SearcherModScheme):
         # create folder
         if self.searchables:
             os.makedirs(
-                dir_path := os.path.join(sys_config.EXPORT_SEARCH_RESULTS, self.searchables[0].const_name),
+                dir_path := os.path.join(sys_config.EXPORT_SEARCH_RESULTS, self.searchables[0].const.name),
                 exist_ok=True
             )
         else:
@@ -43,7 +41,7 @@ class SearcherModV1(SearcherModScheme):
 
         with Exporter.export_stream(dir_path, exists_ok=True, clean_exists=True, fmt=Formats.PICKLE) as write_chunk:
             for space in tqdm(self.searchables, desc='Searching the searchable spaces: ', **sys_config.TQDM_CONFIG):
-                searcher = SerialSearcher(space, Constant.get_constant(space.const_name), use_LIReC=self.use_LIReC)
+                searcher = SerialSearcher(space, space.const, use_LIReC=self.use_LIReC)
                 res = searcher.search(
                     None,
                     find_limit=search_config_local.FIND_LIMIT,

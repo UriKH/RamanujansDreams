@@ -1,7 +1,9 @@
 from dataclasses import dataclass, field
 import sympy as sp
 import mpmath as mp
-from typing import Union, Dict, Optional
+from typing import Union, Dict, Optional, Any
+
+from dreamer.utils.caching import cached_property
 
 
 class Constant:
@@ -18,14 +20,18 @@ class Constant:
 
         if value_mpmath:
             self.value_mpmath = value_mpmath
+        Constant.registry[self.name] = self
+
+    @cached_property
+    def value_mpmath(self):
+        if self.value_mpmath:
+            return self.value_mpmath
         else:
             try:
-                self.value_mpmath = sp.lambdify([], self.value_sympy, modules=['mpmath'])()
+                return sp.lambdify([], self.value_sympy, modules=['mpmath'])()
             except Exception as e:
                 print(f"Warning: Could not auto-convert {self.name} to mpmath. Error: {e}")
-                self.value_mpmath = mp.mpf(0)
-
-        Constant.registry[self.name] = self
+                return mp.mpf(0)
 
     def __mul__(self, other):
         if isinstance(other, Constant):

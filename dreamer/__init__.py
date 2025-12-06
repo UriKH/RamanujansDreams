@@ -23,16 +23,16 @@ catalan = Constant('catalan', sp.Catalan)
 gompertz = Constant('gompertz', -sp.exp(1) * sp.Ei(-1))
 
 
-def zeta(n):
-    if f'zeta_{n}' not in Constant.registry:
-        return Constant(f'zeta_{n}', sp.zeta(n))
-    return Constant.registry[f'zeta_{n}']
+def zeta(n: int):
+    if f'zeta-{n}' not in Constant.registry:
+        return Constant(f'zeta-{n}', sp.zeta(n))
+    return Constant.registry[f'zeta-{n}']
 
 
-def sqrt(v):
+def sqrt(v: Constant | int | float):
     if isinstance(v, Constant):
         return Constant(f'sqrt({v.name})', sp.sqrt(v.value_sympy))
-    if isinstance(v, int):
+    if isinstance(v, float | int):
         return Constant(f'sqrt({v})', sp.sqrt(v))
     raise TypeError(f"Unsupported operand for sqrt: '{type(v)}'")
 
@@ -41,8 +41,8 @@ def power(v: Constant, n: int):
     return Constant(f'{v.name}^{n}', v.value_sympy ** n)
 
 
-def log(n):
-    if f'log_{n}' not in Constant.registry:
-        return Constant(f'log_{n}', sp.log(n))
-    return Constant.registry[f'log_{n}']
+def log(n: int):
+    if f'log-{n}' not in Constant.registry:
+        return Constant(f'log-{n}', sp.log(n))
+    return Constant.registry[f'log-{n}']
 

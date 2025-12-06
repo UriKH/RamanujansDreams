@@ -30,7 +30,6 @@ class SerialSearcher(SearchMethod):
         """
         super().__init__(space, constant, use_LIReC, data_manager, share_data)
         self.data_manager = data_manager if data_manager else DataManager(use_LIReC)
-        self.const_name = space.const_name
         self.parallel = search_config.PARALLEL_SEARCH
         self.pool = ProcessPoolExecutor() if self.parallel else None
 

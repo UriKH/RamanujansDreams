@@ -4,7 +4,6 @@ from ramanujantools.cmf import CMF
 import ramanujantools as rt
 from typing import Optional, Tuple, Set
 from LIReC.db.access import db
-from dreamer.utils.constant_transform import *
 from dreamer.utils.constants.constant import Constant
 import mpmath as mp
 
@@ -14,10 +13,10 @@ n = sp.symbols('n')
 
 
 class Searchable(ABC):
-    def __init__(self, cmf: CMF, constant: str):
+    def __init__(self, cmf: CMF, constant: Constant):
         self.cache = []
         self.cmf = cmf
-        self.const_name = constant
+        self.const = constant
 
     @abstractmethod
     def in_space(self, point: Position) -> bool:
@@ -153,8 +152,8 @@ class Searchable(ABC):
 
         if not use_LIReC and find_limit:
             # with Logger.simple_timer('compute_limit - no LIReC'):
-            sd.initial_values = limit.identify(get_const_as_mpf(self.const_name))
-            sd.delta = limit.delta(get_const_as_mpf(self.const_name))
+            sd.initial_values = limit.identify(self.const.value_mpmath)
+            sd.delta = limit.delta(self.const.value_mpmath)
             if sd.delta in (mp.mpf("inf"), mp.mpf("-inf")):  # TODO: delta is a float!
                 sd.delta = str(sd.delta)
         else:
@@ -162,7 +161,7 @@ class Searchable(ABC):
             if not use_LIReC and not find_limit:
                 print('in order to compute delta must find limit - defaulting to using LIReC')
             sd.delta, sd.initial_values, sd.limit = self.calc_delta(
-                traj_m, Constant.get_constant(self.const_name).value_sympy
+                traj_m, self.const.value_sympy
             )
             if sd.delta is not None:
                 sd.LIReC_identify = True

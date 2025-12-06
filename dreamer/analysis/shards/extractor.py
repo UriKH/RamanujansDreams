@@ -10,11 +10,12 @@ from concurrent.futures import ProcessPoolExecutor
 from dreamer.analysis.shards.hyperplanes import Hyperplane
 from dreamer.analysis.shards.shard import Shard
 from dreamer.utils.logger import Logger
+from dreamer.utils.constants.constant import Constant
 
 
 class ShardExtractor:
-    def __init__(self, const_name: str, cmf: CMF, shift: Position):
-        self.const_name = const_name
+    def __init__(self, const: Constant, cmf: CMF, shift: Position):
+        self.const = const
         self.cmf: CMF = cmf
         self.shift: Position = shift
         self.pool = ProcessPoolExecutor() if analysis_config.PARALLEL_SHARD_VALIDATION else None
@@ -77,7 +78,7 @@ class ShardExtractor:
         skipped = 0
         for enc in shards_encodings:
             A, b, syms = Shard.generate_matrices(list(hps), enc)
-            if (shard := Shard(self.cmf, self.const_name, A, b, self.shift, syms)).is_valid:
+            if (shard := Shard(self.cmf, self.const, A, b, self.shift, syms)).is_valid:
                 shards.append(shard)
             else:
                 skipped += 1
