@@ -8,6 +8,8 @@ from dreamer.utils.constants.constant import Constant
 import mpmath as mp
 
 from dreamer.utils.storage.storage_objects import SearchData, SearchVector
+import sympy as sp
+
 
 n = sp.symbols('n')
 

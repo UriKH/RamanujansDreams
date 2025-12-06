@@ -7,7 +7,7 @@ from . import config as search_config_local
 from dreamer.configs.search import search_config
 from dreamer.utils.types import *
 from dreamer.utils.schemes.module import CatchErrorInModule
-
+from dreamer.configs.system import sys_config
 
 from tqdm import tqdm
 import os
