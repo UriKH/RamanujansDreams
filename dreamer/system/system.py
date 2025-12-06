@@ -80,7 +80,7 @@ class System:
                 Exporter.export(const_path, exists_ok=True, clean_exists=True, data=l, fmt=Formats.PICKLE)
                 Logger(
                     f'CMFs for {const.name} exported to {const_path}', Logger.Levels.info
-                ).log()
+                ).log(msg_prefix='\n')
 
         for constant, funcs in cmf_data.items():
             functions = '\n'
@@ -119,7 +119,7 @@ class System:
         self.__search_stage(filtered_priorities)
 
     def __db_stage(self, constants: List[Constant]) -> Dict[Constant, List[ShiftCMF]]:
-        Logger('Loading CMFs ...', Logger.Levels.info).log()
+        Logger('Loading CMFs ...', Logger.Levels.info).log(msg_prefix='\n')
         modules = []
         cmf_data = defaultdict(set)
 

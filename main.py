@@ -7,7 +7,6 @@ import sympy as sp
 from dreamer import pi, zeta
 
 
-
 mp.dps = 300
 
 if __name__ == '__main__':
@@ -31,15 +30,15 @@ if __name__ == '__main__':
         }
     )
 
-    # dreamer.db_stage.DBModScheme.export_future_append_to_json(
-    #     [
-    #         pFq_formatter(pi, 2, 1, sp.Rational(1, 2), [0, 0, sp.Rational(1, 2)]),
-    #         pFq_formatter(pi, 3, 2, sp.Rational(1, 2), [sp.Rational(1, 2)] * 5)
-    #     ], exits_ok=True
-    # )
+    dreamer.loading.DBModScheme.export_future_append_to_json(
+        [
+            pFq_formatter(pi, 2, 1, sp.Rational(1, 2), [0, 0, sp.Rational(1, 2)]),
+            pFq_formatter(pi, 3, 2, sp.Rational(1, 2), [sp.Rational(1, 2)] * 5)
+        ], exits_ok=True
+    )
 
     System(
-        if_srcs=[pFq_formatter(pi, 2, 1, sp.Rational(1, 2), [0, 0, sp.Rational(1, 2)])],
+        if_srcs=[BasicDBMod(json_path='command.json')],
         analyzers=[analysis.AnalyzerModV1],
         searcher=search.SearcherModV1
     ).run(constants=[pi])
