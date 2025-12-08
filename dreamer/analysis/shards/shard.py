@@ -322,6 +322,8 @@ def chrr_walker(A, A_cols, b, R_sq, start_point, n_desired, thinning, buf_out):
     A: (m, d)
     A_cols: (d, m) - Transposed A for fast column access
     """
+    ERROR_BOUND = 1e-8
+
     m, d = A.shape
 
     # Current State
@@ -382,7 +384,7 @@ def chrr_walker(A, A_cols, b, R_sq, start_point, n_desired, thinning, buf_out):
                     dot = 0.0
                     for col in range(d):
                         dot += A[row, col] * temp_int[col]
-                    if dot > b[row]:
+                    if dot > b[row] + ERROR_BOUND:
                         valid_harvest = False
                         break
 

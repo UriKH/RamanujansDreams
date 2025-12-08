@@ -7,6 +7,7 @@ from LIReC.db.access import db
 from dreamer.utils.constants.constant import Constant
 import mpmath as mp
 
+from dreamer.utils.logger import Logger
 from dreamer.utils.storage.storage_objects import SearchData, SearchVector
 import sympy as sp
 
@@ -40,8 +41,12 @@ class Searchable(ABC):
         """
         # Do walk
         # with Logger.simple_timer('walk'):
-        walked = traj_m.walk({n: 1}, 1000, {n: 0})
-        walked = walked.inv().T
+        try:
+            walked = traj_m.walk({n: 1}, 1000, {n: 0})
+            walked = walked.inv().T
+        except Exception as e:
+            Logger(f'Unexpected exception when trying to walk, ignoring trajectory', Logger.Levels.warning).log(msg_prefix='\n')
+            return None, None, None
         t1_col = (walked / walked[0, 0]).col(0)
 
         # Cache lookup
