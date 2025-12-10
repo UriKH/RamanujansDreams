@@ -44,7 +44,6 @@ class Searchable(ABC):
         """
         # Do walk
         # with Logger.simple_timer('walk'):
-        depth = min(int(1000 / (traj_len / 5)), 1000)
         try:
             walked = traj_m.walk({n: 1}, search_config.DEPTH_FROM_TRAJECTORY_LEN(traj_len) , {n: 0})
             walked = walked.inv().T
