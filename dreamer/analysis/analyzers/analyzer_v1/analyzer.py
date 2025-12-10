@@ -1,6 +1,6 @@
 from dreamer.utils.schemes.analysis_scheme import AnalyzerScheme
 from dreamer.utils.schemes.searchable import Searchable
-from ...shards.extractor import ShardExtractor
+from dreamer.extraction.extractor import ShardExtractor
 from dreamer.utils.storage.storage_objects import DataManager
 from dreamer.search.methods.serial.serial_searcher import SerialSearcher
 from dreamer.utils.types import *
@@ -21,7 +21,7 @@ class Analyzer(AnalyzerScheme):
         self.shift = shift
         self.const_name = const
         self.extractor = ShardExtractor(const, cmf, shift)
-        self.shards = self.extractor.extract_shards()
+        self.shards = self.extractor.extract_searchables()
 
     def search(self) -> Dict[Searchable, DataManager]:
         managers = {}

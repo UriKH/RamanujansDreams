@@ -2,22 +2,22 @@
 Extractor is responsible for shard creation
 """
 import itertools
+
+from dreamer.utils.schemes.extraction_scheme import ExtractionScheme
 from dreamer.utils.types import *
 import sympy as sp
 
 from dreamer.configs import analysis_config
 from concurrent.futures import ProcessPoolExecutor
-from dreamer.analysis.shards.hyperplanes import Hyperplane
-from dreamer.analysis.shards.shard import Shard
+from dreamer.extraction.hyperplanes import Hyperplane
+from dreamer.extraction.shard import Shard
 from dreamer.utils.logger import Logger
 from dreamer.utils.constants.constant import Constant
 
 
-class ShardExtractor:
+class ShardExtractor(ExtractionScheme):
     def __init__(self, const: Constant, cmf: CMF, shift: Position):
-        self.const = const
-        self.cmf: CMF = cmf
-        self.shift: Position = shift
+        super().__init__(const, cmf, shift)
         self.pool = ProcessPoolExecutor() if analysis_config.PARALLEL_SHARD_VALIDATION else None
 
     @property
@@ -66,7 +66,7 @@ class ShardExtractor:
             filtered_hps.update(set(filtered))
         return filtered_hps
 
-    def extract_shards(self) -> List[Shard]:
+    def extract_searchables(self) -> List[Shard]:
         """
         Extracts the shards from the CMF
         :return: The set of shards matching the CMF
@@ -97,7 +97,6 @@ if __name__ == '__main__':
     pi = pFq(2, 1, sp.Rational(1, 2))
 
     shift = Position({x0: sp.Rational(1, 2), x1: sp.Rational(1,2), y0: sp.Rational(1,2)})
-    from pprint import pprint
     # pprint(ShardExtractor('pi', pi, shift).extract_cmf_hps())
     # ppt = ShardExtractor('pi', pi, shift).extract_shards()
     # pprint(len(ppt))

@@ -1,0 +1,25 @@
+from dreamer.utils.schemes.searchable import Searchable
+from dreamer.utils.storage.storage_objects import DataManager
+from dreamer.utils.schemes.module import Module
+from dreamer.utils.types import *
+from dreamer.utils.constants.constant import Constant
+
+from abc import abstractmethod, ABC
+
+
+class ExtractionModScheme(Module):
+    @abstractmethod
+    def execute(self) -> Optional[Dict[str, List[Searchable]]]:
+        raise NotImplementedError
+
+
+class ExtractionScheme(ABC):
+    def __init__(self, const: Constant, cmf: CMF, shift: Position):
+        self.const = const
+        self.cmf: CMF = cmf
+        self.shift: Position = shift
+
+    @abstractmethod
+    def extract_searchables(self) -> List[Searchable]:
+        raise NotImplementedError
+    

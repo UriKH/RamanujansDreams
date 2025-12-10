@@ -153,6 +153,29 @@ class System:
             as_list[k] = list(v)
         return as_list
 
+    # def __searchable_extraction(self, cmf_data: Dict[Constant, List[ShiftCMF]]) -> Dict[Constant, List[Searchable]]:
+    #     analyzers = []
+    #     results = defaultdict(set)
+    #
+    #     for analyzer in self.analyzers:
+    #         match analyzer:
+    #             case t if issubclass(t, AnalyzerModScheme):
+    #                 analyzers.append(analyzer)
+    #             case Searchable():
+    #                 results[analyzer].add(analyzer)
+    #             case str():
+    #                 f_data = Importer.imprt(analyzer)
+    #                 for obj in f_data:
+    #                     results[obj].add(obj)
+    #             case _:
+    #                 raise TypeError(f'unknown analyzer type {analyzer}')
+    #
+    #     analyzer: Type[AnalyzerModScheme]
+    #     for analyzer in analyzers:
+    #
+    #     analyzers_results = [analyzer(cmf_data).get_searchables()]
+
+
     def __analysis_stage(self, cmf_data: Dict[Constant, List[ShiftCMF]]) -> Dict[Constant, List[Searchable]]:
         """
         Preform the analysis stage work
@@ -221,23 +244,6 @@ class System:
                 ).log(msg_prefix='\n')
 
     @staticmethod
-    def validate_constant(constant: str, throw: bool = False) -> bool:
-        """
-        Check if a constant is defined in sympy.
-        :param constant: Constant name as string
-        :param throw: if True, throw an error on fail
-        :raise UnknownConstant if constant is unknown
-        :return: True if constant is defined in sympy.
-        """
-        try:
-            Constant.get_constant(constant)
-            return True
-        except UnknownConstant as e:
-            if throw:
-                raise e
-            return False
-
-    @staticmethod
     def __aggregate_analyzers(dicts: List[Dict[Constant, List[Searchable]]]) -> Dict[Constant, List[Searchable]]:
         """
         Aggregates the priority lists from several analyzers into one
@@ -277,3 +283,5 @@ class System:
                 raise Exception('This was not supposed to happen')
             result[key] = consensus
         return result
+
+    
