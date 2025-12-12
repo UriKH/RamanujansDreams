@@ -2,6 +2,7 @@ import mpmath as mp
 import dreamer.loading
 from dreamer import System, config
 from dreamer import analysis, search
+from dreamer.extraction.extractor import ShardExtractorMod
 from dreamer.loading import *
 import sympy as sp
 from dreamer import pi, zeta
@@ -40,22 +41,27 @@ if __name__ == '__main__':
 
     from sympy import symbols, summation, oo
 
-    n = symbols('n', integer=True, positive=True)
-
-    def chi_minus_3(k):
-        r = k % 3
-        if r == 0:
-            return 0
-        elif r == 1:
-            return 1
-        else:
-            return -1
-
-    L2_chi_minus_3 = summation(chi_minus_3(n) / n ** 2, (n, 1, oo))
-
-    calagari = Constant('clagari', L2_chi_minus_3)
+    # n = symbols('n', integer=True, positive=True)
+    #
+    # def chi_minus_3(k):
+    #     r = k % 3
+    #     if r == 0:
+    #         return 0
+    #     elif r == 1:
+    #         return 1
+    #     else:
+    #         return -1
+    #
+    # L2_chi_minus_3 = summation(chi_minus_3(n) / n ** 2, (n, 1, oo))
+    #
+    # calagari = Constant('clageri', L2_chi_minus_3)
     System(
-        if_srcs=[pFq_formatter(calagari, 3, 2, 4, [sp.Rational(1, 2), 0, 0, 0, 0])],
+        if_srcs=[ #pFq_formatter(pi, 2, 1, -1, [0, 0, 0]),
+                 pFq_formatter(pi, 3, 2, -1, [0] * 5)
+                 # pFq_formatter(pi, 2, 1, -1, [sp.Rational(1, 2)] * 3)
+                 ],
+        extractor=ShardExtractorMod,
+        # extractor=None,
         analyzers=[analysis.AnalyzerModV1],
         searcher=search.SearcherModV1
-    ).run(constants=[calagari])
+    ).run(constants=[pi])

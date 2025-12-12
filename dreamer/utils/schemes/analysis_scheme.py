@@ -8,13 +8,16 @@ from abc import abstractmethod, ABC
 
 
 class AnalyzerModScheme(Module):
-    @abstractmethod
-    def execute(self) -> Dict[str, List[Searchable]]:
-        raise NotImplementedError
+    def __init__(self,
+                 cmf_data: Dict[Constant, List[Searchable]],
+                 name: Optional[str] = None, desc: Optional[str] = None, version: Optional[str] = None
+                 ):
+        super().__init__(name, desc, version)
+        self.cmf_data = cmf_data
 
-    # @abstractmethod
-    # def get_searchables(self) -> Dict[Constant, List[Searchable]]:
-    #     raise NotImplementedError
+    @abstractmethod
+    def execute(self) -> Dict[Constant, List[Searchable]]:
+        raise NotImplementedError
 
 
 class AnalyzerScheme(ABC):
@@ -23,9 +26,5 @@ class AnalyzerScheme(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def prioritize(self, managers: Dict[Searchable, DataManager], ranks: int) -> Dict[Searchable, Dict[str, int]]:
+    def prioritize(self, managers: Dict[Searchable, DataManager], ranks: int) -> Dict[Searchable, Dict[Constant, int]]:
         raise NotImplementedError
-
-    # @abstractmethod
-    # def get_searchables(self) -> List[Searchable]:
-    #     raise NotImplementedError

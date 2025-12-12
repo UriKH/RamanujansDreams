@@ -16,12 +16,10 @@ from dreamer.utils.constants.constant import Constant
 
 
 class Analyzer(AnalyzerScheme):
-    def __init__(self, const: Constant, cmf: CMF, shift: Position, constant: mp.mpf):
+    def __init__(self, const: Constant, cmf: CMF, shards: List[Searchable]):
         self.cmf = cmf
-        self.shift = shift
-        self.const_name = const
-        self.extractor = ShardExtractor(const, cmf, shift)
-        self.shards = self.extractor.extract_searchables()
+        self.const = const
+        self.shards = shards
 
     def search(self) -> Dict[Searchable, DataManager]:
         managers = {}
@@ -29,7 +27,7 @@ class Analyzer(AnalyzerScheme):
         for shard in tqdm(self.shards, desc=f'Analyzing shards', **sys_config.TQDM_CONFIG):
             start = shard.get_interior_point()
 
-            searcher = SerialSearcher(shard, self.const_name, use_LIReC=analysis_config.USE_LIReC)
+            searcher = SerialSearcher(shard, self.const, use_LIReC=analysis_config.USE_LIReC)
             dm = searcher.search(
                 start,
                 find_limit=analysis_config.ANALYZE_LIMIT,
@@ -43,13 +41,13 @@ class Analyzer(AnalyzerScheme):
             if analysis_config.PRINT_FOR_EVERY_SEARCHABLE:
                 if best_delta is None:
                     Logger(
-                        f'Identified {identified * 100:.2f}% of trajectories as containing "{self.const_name.name}",'
+                        f'Identified {identified * 100:.2f}% of trajectories as containing "{self.const.name}",'
                         f' best delta: {best_delta}',
                         Logger.Levels.info
                     ).log(msg_prefix='\n')
                 else:
                     Logger(
-                        f'Identified {identified * 100:.2f}% of trajectories as containing "{self.const_name.name}",'
+                        f'Identified {identified * 100:.2f}% of trajectories as containing "{self.const.name}",'
                         f' best delta: {best_delta:.4f}',
                         Logger.Levels.info
                     ).log(msg_prefix='\n')

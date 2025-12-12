@@ -9,11 +9,13 @@ from dreamer.utils.schemes.analysis_scheme import AnalyzerModScheme
 from dreamer.utils.schemes.db_scheme import DBModScheme
 from dreamer.loading.funcs.formatter import Formatter
 from dreamer.utils.schemes.searcher_scheme import SearcherModScheme
+from dreamer.utils.schemes.extraction_scheme import ExtractionModScheme
 from ..utils.storage import Exporter, Importer, Formats
 from ..utils.types import *
 from ..utils.logger import Logger
 from ..utils.constants.constant import Constant
 from dreamer.configs.system import sys_config
+from dreamer.configs.extraction import extraction_config
 from functools import partial
 
 
@@ -30,6 +32,7 @@ class System:
 
     def __init__(self,
                  if_srcs: List[DBModScheme | str | Formatter],
+                 extractor: Optional[Type[ExtractionModScheme]],
                  analyzers: List[Type[AnalyzerModScheme] | str | Searchable],
                  searcher: Type[SearcherModScheme] | partial[SearcherModScheme]):
         """
@@ -39,9 +42,9 @@ class System:
         :param searcher: A SearcherModScheme type used to deepen the search done by the analyzers
         """
         self.if_srcs = if_srcs
+        self.extractor = extractor
         self.analyzers = analyzers
         self.searcher = searcher
-        # self.if_srcs_contain_dbs = any(isin)
 
     def run(self, constants: List[str] | str | Constant | List[Constant] = None):
         """
@@ -66,7 +69,7 @@ class System:
                 as_obj.append(c)
 
         constants = as_obj
-        cmf_data = self.__db_stage(constants)
+        cmf_data = self.__loading_stage(constants)
         if path := sys_config.EXPORT_CMFS:
             os.makedirs(path, exist_ok=True)
 
@@ -93,7 +96,14 @@ class System:
                 f'Searching for {constant.name} using inspiration functions: {functions}', Logger.Levels.info
             ).log(msg_prefix='\n')
 
-        priorities = self.__analysis_stage(cmf_data)
+        # Extractor computes shards and saves the results in files in a format.
+        # If extractor not provided, analysis will try to read from the default searchables directory
+        shard_dict = None
+        if self.extractor:
+            shard_dict = self.extractor(cmf_data).execute()
+
+        # analysis stage executes the analyzers. These will read the files
+        priorities = self.__analysis_stage(shard_dict)
         filtered_priorities = dict()
         if path := sys_config.EXPORT_ANALYSIS_PRIORITIES:
             os.makedirs(path, exist_ok=True)
@@ -118,7 +128,7 @@ class System:
 
         self.__search_stage(filtered_priorities)
 
-    def __db_stage(self, constants: List[Constant]) -> Dict[Constant, List[ShiftCMF]]:
+    def __loading_stage(self, constants: List[Constant]) -> Dict[Constant, List[ShiftCMF]]:
         Logger('Loading CMFs ...', Logger.Levels.info).log(msg_prefix='\n')
         modules = []
         cmf_data = defaultdict(set)
@@ -153,36 +163,13 @@ class System:
             as_list[k] = list(v)
         return as_list
 
-    # def __searchable_extraction(self, cmf_data: Dict[Constant, List[ShiftCMF]]) -> Dict[Constant, List[Searchable]]:
-    #     analyzers = []
-    #     results = defaultdict(set)
-    #
-    #     for analyzer in self.analyzers:
-    #         match analyzer:
-    #             case t if issubclass(t, AnalyzerModScheme):
-    #                 analyzers.append(analyzer)
-    #             case Searchable():
-    #                 results[analyzer].add(analyzer)
-    #             case str():
-    #                 f_data = Importer.imprt(analyzer)
-    #                 for obj in f_data:
-    #                     results[obj].add(obj)
-    #             case _:
-    #                 raise TypeError(f'unknown analyzer type {analyzer}')
-    #
-    #     analyzer: Type[AnalyzerModScheme]
-    #     for analyzer in analyzers:
-    #
-    #     analyzers_results = [analyzer(cmf_data).get_searchables()]
-
-
-    def __analysis_stage(self, cmf_data: Dict[Constant, List[ShiftCMF]]) -> Dict[Constant, List[Searchable]]:
+    def __analysis_stage(self, cmf_data: Optional[Dict[Constant, List[Searchable]]] = None) -> Dict[Constant, List[Searchable]]:
         """
         Preform the analysis stage work
         :param cmf_data: data produced in the DB stage
         :return: The results of the analysis
         """
-        analyzers = []
+        analyzers: List[Type[AnalyzerModScheme]] = []
         results = defaultdict(set)
 
         for analyzer in self.analyzers:
@@ -190,13 +177,23 @@ class System:
                 case t if issubclass(t, AnalyzerModScheme):
                     analyzers.append(analyzer)
                 case Searchable():
-                    results[analyzer].add(analyzer)
+                    results[analyzer.const].add(analyzer)
                 case str():
                     f_data = Importer.imprt(analyzer)
                     for obj in f_data:
                         results[obj].add(obj)
                 case _:
                     raise TypeError(f'unknown analyzer type {analyzer}')
+
+        if not cmf_data:
+            cmf_data = {}
+            for const_name in os.listdir(extraction_config.PATH_TO_SEARCHABLES):
+                imp_stream = Importer.import_stream(f'{extraction_config.PATH_TO_SEARCHABLES}\\{const_name}')
+                const_shards = []
+                for shards in imp_stream:
+                    const_shards += shards
+                if const_shards:
+                    cmf_data[const_shards[0].const] = const_shards
 
         analyzers_results = [analyzer(cmf_data).execute() for analyzer in analyzers]
         priorities = self.__aggregate_analyzers(analyzers_results)
@@ -283,5 +280,3 @@ class System:
                 raise Exception('This was not supposed to happen')
             result[key] = consensus
         return result
-
-    

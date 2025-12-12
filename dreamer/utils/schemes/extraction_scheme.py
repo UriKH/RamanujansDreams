@@ -8,8 +8,15 @@ from abc import abstractmethod, ABC
 
 
 class ExtractionModScheme(Module):
+    def __init__(self,
+                 cmf_data: Dict[Constant, List[ShiftCMF]],
+                 name: Optional[str] = None, desc: Optional[str] = None, version: Optional[str] = None
+                 ):
+        super().__init__(name, desc, version)
+        self.cmf_data = cmf_data
+
     @abstractmethod
-    def execute(self) -> Optional[Dict[str, List[Searchable]]]:
+    def execute(self) -> Optional[Dict[Constant, List[Searchable]]]:
         raise NotImplementedError
 
 

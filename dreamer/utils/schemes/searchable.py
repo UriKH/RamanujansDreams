@@ -16,10 +16,11 @@ n = sp.symbols('n')
 
 
 class Searchable(ABC):
-    def __init__(self, cmf: CMF, constant: Constant):
+    def __init__(self, cmf: CMF, constant: Constant, shift: Position):
         self.cache = []
         self.cmf = cmf
         self.const = constant
+        self.shift = shift
 
     @abstractmethod
     def in_space(self, point: Position) -> bool:
