@@ -78,21 +78,25 @@ class Searchable(ABC):
                 # mp.mpf.dps = 400
                 res = db.identify([constant.evalf(300)] + t1_col[1:])
             except Exception as e:
-                # print(f'traj={traj}, start={start}, constant={constant}')
+                # print(f'traj={traj_m}, constant={constant}, {e}')
+                # return None, None, None
                 raise Exception(f'LIReC failed with: {e}')
 
             if not res:
                 return None, None, None
 
             coeffs = res[0].to_json()['coeffs']
-            p, q = coeffs[0::2], coeffs[1::2]
+            p, q = [0] + coeffs[0::2], [0] + coeffs[1::2]
 
         # with Logger.simple_timer('check convergence'):
         # Check convergence
         try:
-            converge, (_, limit, _) = self._does_converge(traj_m, p, q)
-        except:
+            # converge, (_, limit, _) = self._does_converge(traj_m, p, q)
+            converge = True
+        except Exception as e:
+            print(f'convergence exception: {e}')
             converge = False
+
         if not converge:
             return None, None, None
 
@@ -124,7 +128,7 @@ class Searchable(ABC):
             return None, None, None
 
         delta = -1 - sp.log(err) / sp.log(denom)
-        return float(delta.evalf(10)), rt.Matrix([p, q]), float(limit.as_float())
+        return float(delta.evalf(10)), rt.Matrix([p, q]), 0 #float(limit.as_float())
 
     def compute_trajectory_data(self, traj: Position, start: Position,
                                 *, find_limit: bool = False,
@@ -144,10 +148,14 @@ class Searchable(ABC):
         """
         # with Logger.simple_timer('compute_trajectory_matrix'):
         sd = SearchData(SearchVector(start, traj))
-        traj_m = self.cmf.trajectory_matrix(
-            trajectory=traj,
-            start=start
-        )
+        try:
+            traj_m = self.cmf.trajectory_matrix(
+                trajectory=traj,
+                start=start
+            )
+        except Exception as e:
+            Logger(f'error while computing trajectory matrix for start={start}, trajectory={traj}: {e}', Logger.Levels.warning).log(msg_prefix='\n')
+            return sd
 
         if find_limit:
             limit = traj_m.limit({n: 1}, 2000, {n: 0})
@@ -168,9 +176,14 @@ class Searchable(ABC):
             # with Logger.simple_timer('compute_limit - LIReC'):
             if not use_LIReC and not find_limit:
                 print('in order to compute delta must find limit - defaulting to using LIReC')
+            # try:
             sd.delta, sd.initial_values, sd.limit = self.calc_delta(
                 traj_m, self.const.value_sympy
             )
+            # except Exception as e:
+            #     print(f'failed with {e} for start={start}, trajectory={traj}')
+            #     sd.delta = None
+                # raise Exception(f'error {e}: start={start}, trajectory={traj}')
             if sd.delta is not None:
                 sd.LIReC_identify = True
         return sd
@@ -178,11 +191,26 @@ class Searchable(ABC):
     @staticmethod
     def _does_converge(t_mat: rt.Matrix, p, q) -> Tuple[bool, Tuple[Limit, Limit, Limit]]:
         l1, l2, l3 = t_mat.limit(
-            {n: 1}, [950, 1000, 1050], {n: 0}, initial_values=rt.Matrix([p, q])
+            {n: 1}, [950, 1000, 1050], {n: 0}
         )
-        l2_float = float(l2.as_float())
-        diff1 = abs(l2_float - float(l1.as_float()))
-        diff2 = abs(float(l3.as_float()) - l2_float)
+
+        floats = []
+        l = [l1, l2, l3]
+        for lim in l:
+            mat = lim.current.inv().T
+            t1_col = (mat / mat[0, 0]).col(0)
+            values = [item for item in t1_col]
+            values_vec = sp.Matrix(values)
+            p = sp.Matrix(p).T
+            q = sp.Matrix(q).T
+            numerator = p.dot(values_vec)
+            denom = q.dot(values_vec)
+            estimated = sp.Abs(sp.Rational(numerator, denom))
+            floats.append(estimated)
+
+        f1, f2, f3 = floats
+        diff1 = abs(f1 - f2)
+        diff2 = abs(f3 - f2)
         if diff1 < 1e-10 and diff2 < 1e-10:
             return True, (l1, l2, l3)
         return False, (l1, l2, l3)

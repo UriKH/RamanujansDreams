@@ -41,10 +41,12 @@ class SerialSearcher(SearchMethod):
                trajectory_generator: Callable[int, int] = search_config.NUM_TRAJECTORIES_FROM_DIM
                ) -> DataManager:
         if not starts:
-            starts = self.space.get_interior_point()
+            with Logger.simple_timer('compute start point'):
+                starts = self.space.get_interior_point()
         if isinstance(starts, Position):
             starts = [starts]
 
+        # with Logger.simple_timer('sample trajectories'):
         trajectories = self.space.sample_trajectories(
             trajectory_generator(self.space.dim),
             strict=False
@@ -56,6 +58,7 @@ class SerialSearcher(SearchMethod):
         start_lst = [p[1] for p in pairs]
 
         if self.parallel:
+            # with Logger.simple_timer('parallel search'):
             results = self.pool.map(
                 partial(
                     self.space.compute_trajectory_data,

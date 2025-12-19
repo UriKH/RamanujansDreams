@@ -44,7 +44,7 @@ class Shard(Searchable):
         return np.all(self.A @ point < self.b)
 
     def get_interior_point(self) -> Position:
-        return Position({sym: v for v, sym in zip(self.start_coord, self.symbols)})
+        return Position({sym: v for v, sym in zip(self.start_coord.values(), self.symbols)})
 
     def sample_trajectories(self, n_samples, *, strict: Optional[bool] = False) -> Set[Position]:
         """
@@ -86,10 +86,10 @@ class Shard(Searchable):
             # Edge case: If cone is tiny, ensure we at least look for 1
             if target_yield < 1:
                 target_yield = 1
-        sampler = CHRRSampler(self.A, np.zeros_like(self.b), R=np.ceil(R+0.5), thinning=5, start=self.start_coord)
+        sampler = CHRRSampler(self.A, np.zeros_like(self.b), R=np.ceil(R+0.5), thinning=5, start=np.array(list(self.get_interior_point().values()), dtype=np.float64))
         samples, t = sampler.sample(target_yield)
         return {
-            Position({sym: v for v, sym in zip(p, self.symbols)})
+            Position({sym: sp.sympify(v) for v, sym in zip(p, self.symbols)})
             for p in samples
         }
 
@@ -262,170 +262,203 @@ class Shard(Searchable):
         S = np.eye(self.shift.shape[0]) * self.shift
         return self.b + (self.A @ S).sum(axis=1)
 
-    @staticmethod
-    def solve_polyhedron_fast(A: np.ndarray, b: np.ndarray, integer_only: bool = True) -> tuple[bool, np.ndarray | None]:
-        """
-        Checks if Ax <= b is feasible.
-        optimized for speed by checking linear relaxation first.
+    # @staticmethod
+    # def solve_polyhedron_fast(A: np.ndarray, b: np.ndarray, integer_only: bool = True) -> tuple[bool, np.ndarray | None]:
+    #     """
+    #     Checks if Ax <= b is feasible.
+    #     optimized for speed by checking linear relaxation first.
+    #
+    #     Args:
+    #         A: Coefficients matrix
+    #         b: Bounds vector
+    #         integer_only: If True, enforces integer solution.
+    #
+    #     Returns:
+    #         (feasible, point)
+    #     """
+    #     n_vars = A.shape[1]
+    #     c = np.zeros(n_vars)  # No objective, just feasibility
+    #
+    #     # --- Step 1: Linear Relaxation (The "Speed Filter") ---
+    #     # We first check if a FLOATING POINT solution exists.
+    #     # This is incredibly fast (P-Time). If this fails, integer solution is impossible.
+    #     res_lp = linprog(c, A_ub=A, b_ub=b-1e-6, bounds=(None, None), method='highs')
+    #
+    #     if not res_lp.success:
+    #         return False, None
+    #
+    #     # If user only wanted float, or if we got lucky and found integers naturally:
+    #     if not integer_only:
+    #         return True, res_lp.x
+    #
+    #     # Heuristic: Sometimes LP finds an integer solution by chance (e.g. at a clean vertex).
+    #     # Check if the float solution is already close to integers.
+    #     if np.allclose(res_lp.x, np.round(res_lp.x), atol=1e-5):
+    #         return True, np.round(res_lp.x).astype(int)
+    #
+    #     # --- Step 2: Integer Solve (MILP) ---
+    #     # Only runs if Step 1 passed but result wasn't integer.
+    #     # This is the "heavy" lifting (NP-Hard).
+    #
+    #     # Convert constraints for milp format: -inf <= Ax <= b
+    #     constraints = LinearConstraint(A, lb=-np.inf, ub=b)
+    #     integrality = np.ones(n_vars)  # All variables must be integers
+    #
+    #     res_milp = milp(
+    #         c=c,
+    #         constraints=constraints,
+    #         integrality=integrality,
+    #         bounds=Bounds(-np.inf, np.inf),  # Allow negative integers
+    #         options={"presolve": True}  # Critical for speed
+    #     )
+    #
+    #     if res_milp.success:
+    #         return True, np.round(res_milp.x).astype(int)
+    #
+    #     return False, None
 
-        Args:
-            A: Coefficients matrix
-            b: Bounds vector
-            integer_only: If True, enforces integer solution.
+    # @staticmethod
+    # def get_signatures(A, b, points):
+    #     """
+    #     Vectorized calculation of sign patterns for many points.
+    #     Returns set of unique tuples.
+    #     """
+    #     # points shape: (dim, n_samples)
+    #     # A shape: (n_constraints, dim)
+    #     # result shape: (n_constraints, n_samples)
+    #
+    #     # Check Ax > b (True if violated/flipped, False if standard)
+    #     lhs = A @ points
+    #     # Broadcasting b across columns
+    #     is_flipped = lhs < b[:, np.newaxis]
+    #
+    #     # Convert columns to set of tuples
+    #     # efficient matrix-to-set conversion
+    #     return set(tuple(col) for col in is_flipped.T)
 
-        Returns:
-            (feasible, point)
-        """
-        n_vars = A.shape[1]
-        c = np.zeros(n_vars)  # No objective, just feasibility
+    # @staticmethod
+    # def solve_bounded_feasibility(A, b, signs, box_limit):
+    #     """
+    #     Checks if a sign pattern exists strictly WITHIN the box [-box_limit, box_limit].
+    #     """
+    #     # 1. Setup Active Constraints based on signs
+    #     # If sign is 0 (False): Ax <= b
+    #     # If sign is 1 (True):  Ax >= b  -> -Ax <= -b
+    #
+    #     A_curr = A.copy()
+    #     b_curr = b.copy()
+    #
+    #     # Flip rows where sign is True
+    #     flip_idx = np.where(signs)[0]
+    #     A_curr[flip_idx] *= 1
+    #     b_curr[flip_idx] *= 1
+    #
+    #     n_vars = A.shape[1]
+    #     c = np.zeros(n_vars)  # No objective needed
+    #
+    #     # 2. Apply the "Safety Box" Bounds
+    #     # This prevents the solver from finding solutions at infinity
+    #     # or outside your area of interest.
+    #     bounds = (-box_limit, box_limit)
+    #
+    #     res = linprog(c, A_ub=A_curr, b_ub=b_curr, bounds=bounds, method='highs')
+    #
+    #     return res.success
 
-        # --- Step 1: Linear Relaxation (The "Speed Filter") ---
-        # We first check if a FLOATING POINT solution exists.
-        # This is incredibly fast (P-Time). If this fails, integer solution is impossible.
-        res_lp = linprog(c, A_ub=A, b_ub=b, bounds=(None, None), method='highs')
-
-        if not res_lp.success:
-            return False, None
-
-        # If user only wanted float, or if we got lucky and found integers naturally:
-        if not integer_only:
-            return True, res_lp.x
-
-        # Heuristic: Sometimes LP finds an integer solution by chance (e.g. at a clean vertex).
-        # Check if the float solution is already close to integers.
-        if np.allclose(res_lp.x, np.round(res_lp.x), atol=1e-5):
-            return True, np.round(res_lp.x).astype(int)
-
-        # --- Step 2: Integer Solve (MILP) ---
-        # Only runs if Step 1 passed but result wasn't integer.
-        # This is the "heavy" lifting (NP-Hard).
-
-        # Convert constraints for milp format: -inf <= Ax <= b
-        constraints = LinearConstraint(A, lb=-np.inf, ub=b)
-        integrality = np.ones(n_vars)  # All variables must be integers
-
-        res_milp = milp(
-            c=c,
-            constraints=constraints,
-            integrality=integrality,
-            bounds=Bounds(-np.inf, np.inf),  # Allow negative integers
-            options={"presolve": True}  # Critical for speed
-        )
-
-        if res_milp.success:
-            return True, np.round(res_milp.x).astype(int)
-
-        return False, None
-
-    from scipy.optimize import linprog
-
-    @staticmethod
-    def get_signatures(A, b, points):
-        """
-        Vectorized calculation of sign patterns for many points.
-        Returns set of unique tuples.
-        """
-        # points shape: (dim, n_samples)
-        # A shape: (n_constraints, dim)
-        # result shape: (n_constraints, n_samples)
-
-        # Check Ax > b (True if violated/flipped, False if standard)
-        lhs = A @ points
-        # Broadcasting b across columns
-        is_flipped = lhs < b[:, np.newaxis]
-
-        # Convert columns to set of tuples
-        # efficient matrix-to-set conversion
-        return set(tuple(col) for col in is_flipped.T)
-
-    @staticmethod
-    def solve_bounded_feasibility(A, b, signs, box_limit):
-        """
-        Checks if a sign pattern exists strictly WITHIN the box [-box_limit, box_limit].
-        """
-        # 1. Setup Active Constraints based on signs
-        # If sign is 0 (False): Ax <= b
-        # If sign is 1 (True):  Ax >= b  -> -Ax <= -b
-
-        A_curr = A.copy()
-        b_curr = b.copy()
-
-        # Flip rows where sign is True
-        flip_idx = np.where(signs)[0]
-        A_curr[flip_idx] *= 1
-        b_curr[flip_idx] *= 1
-
-        n_vars = A.shape[1]
-        c = np.zeros(n_vars)  # No objective needed
-
-        # 2. Apply the "Safety Box" Bounds
-        # This prevents the solver from finding solutions at infinity
-        # or outside your area of interest.
-        bounds = (-box_limit, box_limit)
-
-        res = linprog(c, A_ub=A_curr, b_ub=b_curr, bounds=bounds, method='highs')
-
-        return res.success
-
-    @staticmethod
-    def find_regions_in_box(A, b, box_side=100, samples=100_000):
-        """
-        Identifies all feasible regions intersecting the hypercube centered at origin.
-
-        Args:
-            A, b: Hyperplanes
-            box_side: Length of the cube side (e.g. 100 means [-50, 50])
-            samples: Number of random points to test
-        """
-        limit = box_side / 2.0
-        dim = A.shape[1]
-        n_planes = A.shape[0]
-
-        print(f"--- Starting Search in {dim}D Box [{-limit}, {limit}] ---")
-
-        # --- Phase 1: Uniform "Flood" Sampling ---
-        # Much safer than Gaussian because we cover corners equally
-        print(f"Phase 1: Sampling {samples} points...")
-
-        random_points = np.random.uniform(low=-limit, high=limit, size=(dim, samples))
-        found_regions = Shard.get_signatures(A, b, random_points)
-
-        print(f"  > Found {len(found_regions)} unique regions via sampling.")
-
-        # --- Phase 2: Bounded Crawler ---
-        # We use the regions found by sampling as our starting "seeds".
-        # We explore their neighbors to find any tiny slivers sampling might have missed.
-
-        queue = list(found_regions)
-        checked = set(found_regions)  # Avoid re-checking known ones
-        valid = set(found_regions)  # Final list of valid ones
-
-        print("Phase 2: Crawling for missing neighbors...")
-
-        while queue:
-            current_sign = queue.pop(0)
-
-            for i in range(n_planes):
-                # Create neighbor signature (flip i-th bit)
-                neigh_lst = list(current_sign)
-                neigh_lst[i] = not neigh_lst[i]
-                neighbor = tuple(neigh_lst)
-
-                if neighbor not in checked:
-                    checked.add(neighbor)
-
-                    # Check feasibility ONLY within the box
-                    is_feasible = Shard.solve_bounded_feasibility(A, b, neighbor, limit)
-
-                    if is_feasible:
-                        valid.add(neighbor)
-                        queue.append(neighbor)  # Continue crawling from this new region
-
-        print(f"--- Finished. Total valid regions: {len(valid)} ---")
-        return list(valid)
+    # @staticmethod
+    # def find_regions_in_box(A, b, box_side=100, samples=100_000):
+    #     """
+    #     Identifies all feasible regions intersecting the hypercube centered at origin.
+    #
+    #     Args:
+    #         A, b: Hyperplanes
+    #         box_side: Length of the cube side (e.g. 100 means [-50, 50])
+    #         samples: Number of random points to test
+    #     """
+    #     limit = box_side / 2.0
+    #     dim = A.shape[1]
+    #     n_planes = A.shape[0]
+    #
+    #     print(f"--- Starting Search in {dim}D Box [{-limit}, {limit}] ---")
+    #
+    #     # --- Phase 1: Uniform "Flood" Sampling ---
+    #     # Much safer than Gaussian because we cover corners equally
+    #     print(f"Phase 1: Sampling {samples} points...")
+    #
+    #     random_points = np.random.uniform(low=-limit, high=limit, size=(dim, samples))
+    #     found_regions = Shard.get_signatures(A, b, random_points)
+    #
+    #     print(f"  > Found {len(found_regions)} unique regions via sampling.")
+    #
+    #     # --- Phase 2: Bounded Crawler ---
+    #     # We use the regions found by sampling as our starting "seeds".
+    #     # We explore their neighbors to find any tiny slivers sampling might have missed.
+    #
+    #     queue = list(found_regions)
+    #     checked = set(found_regions)  # Avoid re-checking known ones
+    #     valid = set(found_regions)  # Final list of valid ones
+    #
+    #     print("Phase 2: Crawling for missing neighbors...")
+    #
+    #     while queue:
+    #         current_sign = queue.pop(0)
+    #
+    #         for i in range(n_planes):
+    #             # Create neighbor signature (flip i-th bit)
+    #             neigh_lst = list(current_sign)
+    #             neigh_lst[i] = not neigh_lst[i]
+    #             neighbor = tuple(neigh_lst)
+    #
+    #             if neighbor not in checked:
+    #                 checked.add(neighbor)
+    #
+    #                 # Check feasibility ONLY within the box
+    #                 is_feasible = Shard.solve_bounded_feasibility(A, b, neighbor, limit)
+    #
+    #                 if is_feasible:
+    #                     valid.add(neighbor)
+    #                     queue.append(neighbor)  # Continue crawling from this new region
+    #
+    #     print(f"--- Finished. Total valid regions: {len(valid)} ---")
+    #     return list(valid)
 
     @cached_property
-    def start_coord(self):
+    def start_coord(self) -> Position:
+        def find_integer_solution(A, b):
+            """
+            Checks for integer solution to Ax < b.
+            Returns the solution x if found, else None.
+            """
+            m, n = A.shape
+
+            # 1. Handle the strict inequality (Ax < b)
+            # If data is purely integer, use offset = 1.0
+            # If data is float, use a small epsilon, e.g., offset = 1e-6
+            offset = 1.0
+            b_upper = b - offset
+
+            # 2. Define Constraints: -inf <= Ax <= b_upper
+            # We use -np.inf for the lower bound effectively making it a one-sided inequality
+            constraints = LinearConstraint(A, -np.inf, b_upper)
+
+            # 3. Define Integrality: 1 means integer, 0 means continuous
+            integrality = np.ones(n)
+
+            # 4. Define Bounds on X: default is (0, inf), we want (-inf, inf)
+            # Note: Solvers work faster with tighter bounds, but this works generally.
+            bounds = Bounds(-np.inf, np.inf)
+
+            # 5. Objective: We only care about feasibility, so we minimize 0*x
+            c = np.zeros(n)
+
+            res = milp(c=c, constraints=constraints, integrality=integrality, bounds=bounds)
+
+            if res.success:
+                # Rounding is safe because the solver guarantees integer feasibility within tolerance
+                return np.round(res.x).astype(int)
+            else:
+                return None
+
         # res = self.__find_integer_point_milp(
         #     self.A, self.b_shifted,
         #     xmin=[-analysis_config.VALIDATION_BOUND_BOX_DIM] * self.dim,
@@ -434,14 +467,15 @@ class Shard(Searchable):
         # if self.find_feasible_point(self.A, self.b) is None:
         #     return None
         # res = self.find_integer_feasible_point(self.A, self.b)
-        res = self.solve_polyhedron_fast(self.A, self.b, True)[1]
+        # res = self.solve_polyhedron_fast(self.A, self.b_shifted, True)[1]
+        res = find_integer_solution(self.A, self.b_shifted)
         if res is None:
             return None
-        return res + self.shift
+        return Position({sym: v for sym, v in zip(self.symbols, np.int64(res).tolist())}) + Position({sym: sp.Rational(v) for sym, v in zip(self.symbols, self.shift.tolist())})
 
-    @cached_property
-    def is_valid(self):
-        return self.start_coord is not None
+    # @cached_property
+    # def is_valid(self):
+    #     return self.start_coord is not None
 
 @njit(cache=True)
 def gcd_recursive(a, b):

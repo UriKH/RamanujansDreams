@@ -18,7 +18,7 @@ class SystemConfig(Configurable):
 
     def __post_init__(self):
         self.TQDM_CONFIG = {
-            'bar_format': '{desc:<40}' + ' ' * 5 + '{bar} | {elapsed} {rate_fmt} ({percentage:.1f}%)',
+            'bar_format': '{desc:<40}' + ' ' * 5 + '{bar} | {elapsed} {rate_fmt} ({percentage:.2f}%)',
             'ncols': 100
         }
 
