@@ -5,12 +5,13 @@ import itertools
 import os.path
 import time
 from collections import defaultdict
+import sympy as sp
 from functools import partial
 import random
 
 from dreamer.utils.schemes.extraction_scheme import ExtractionScheme, ExtractionModScheme
 from dreamer.utils.types import *
-import sympy as sp
+
 from dreamer.configs import sys_config, extraction_config
 
 from dreamer.configs import analysis_config
@@ -82,9 +83,12 @@ class ShardExtractor(ExtractionScheme):
         # Zero division solutions
         l = set()
 
+        import sympy as sp
+
         for v in mat.iter_values():
             if (den := v.as_numer_denom()[1]) == 1:
                 continue
+
             solutions = {(sym, sol) for sym in den.free_symbols for sol in sp.solve(sp.simplify(den), sym)}
             for lhs, rhs in solutions:
                 l.add(Hyperplane(lhs - rhs, symbols))
@@ -318,19 +322,113 @@ class ShardExtractor(ExtractionScheme):
 
             return True
 
-        def clean_and_verify_solutions(matrix, variables):
+        # def clean_and_verify_solutions(matrix, variables):
+        #     """
+        #     Main Driver Function.
+        #     """
+        #     M_poly = get_numerator_matrix(matrix)
+        #     raw_candidates = get_candidates_dirty(M_poly)
+        #
+        #     unique_candidates = set()
+        #     verified_planes = set()
+        #
+        #     # Clean raw candidates (strip powers, contents)
+        #     for item in raw_candidates:
+        #         factored = sp.factor(item)
+        #         if isinstance(factored, sp.Mul):
+        #             factors = factored.args
+        #         else:
+        #             factors = [factored]
+        #
+        #         for f in factors:
+        #             powers = f.as_powers_dict()
+        #             for base, exp in powers.items():
+        #                 if not base.free_symbols:
+        #                     continue
+        #
+        #                 content, clean = base.as_content_primitive()
+        #
+        #                 # 3. FAST Sign Normalization
+        #                 # We want to turn (-x - y) into (x + y)
+        #                 # But we must avoid crashing on (x*y + z)
+        #
+        #                 # Get a deterministic 'first' symbol (e.g., 'x')
+        #                 # (Sorting a list of 5 symbols is instant)
+        #                 free_syms = sorted(list(clean.free_symbols), key=lambda s: s.name)
+        #                 first_sym = free_syms[0]
+        #
+        #                 # Get the coefficient of this symbol
+        #                 # e.g., in (-2x + y), coeff of x is -2.
+        #                 coeff = clean.coeff(first_sym)
+        #
+        #                 # CRITICAL FIX: Only compare if it's a pure Number!
+        #                 # If coeff is 'y', we skip this step.
+        #                 if coeff.is_number and coeff < 0:
+        #                     clean = -clean
+        #
+        #                 unique_candidates.add(clean)
+        #
+        #                 # # Strip scalar content (e.g. 5x -> x)
+        #                 # content, clean = base.as_content_primitive()
+        #                 # # Normalize sign
+        #                 # first_sym = list(clean.free_symbols)[0]
+        #                 # if sp.total_degree(clean) > 1:
+        #                 #     continue
+        #                 # if clean.coeff(first_sym) < 0:
+        #                 #     clean = -clean
+        #                 # unique_candidates.add(clean)
+        #
+        #     # Verify each candidate
+        #     for cand in unique_candidates:
+        #         if verify_hyperplane(cand, matrix, variables):
+        #             verified_planes.add(cand)
+        #
+        #     return list(verified_planes)
+
+        import sympy as sp
+        import random
+
+        def clean_and_verify_safe(matrix, variables, max_expected_degree=3):
             """
-            Main Driver Function.
+            Stabilized version:
+            1. Deterministic (Fixed Seed)
+            2. Prevents hangs (Degree Guard)
+            3. Filters artifacts robustly
             """
+            # FIX 1: Set Random Seed for reproducibility
+            # This ensures "different runs" always give the SAME result.
+            random.seed(42)
+
+            print("Step 1: Pre-processing Matrix...")
             M_poly = get_numerator_matrix(matrix)
+
+            print("Step 2: Harvesting Candidates (Dirty Method)...")
             raw_candidates = get_candidates_dirty(M_poly)
+            print(f"   -> Collected {len(raw_candidates)} raw candidates.")
 
             unique_candidates = set()
             verified_planes = set()
 
-            # Clean raw candidates (strip powers, contents)
+            print("Step 3: Cleaning Candidates (With Degree Guard)...")
             for item in raw_candidates:
-                factored = sp.factor(item)
+                # FIX 2: THE DEGREE GUARD
+                # Before doing expensive operations, check complexity.
+                # If a polynomial is massive, it's definitely an artifact of the algorithm.
+                try:
+                    # Using total_degree is fast. If it fails or is huge, skip.
+                    deg = sp.total_degree(item)
+                    if deg > max_expected_degree:
+                        # print(f"      [Skipping garbage of degree {deg}]")
+                        continue
+                except:
+                    continue
+
+                # Now it is safe to factor
+                try:
+                    factored = sp.factor(item)
+                except:
+                    continue
+
                 if isinstance(factored, sp.Mul):
                     factors = factored.args
                 else:
@@ -339,29 +437,82 @@ class ShardExtractor(ExtractionScheme):
                 for f in factors:
                     powers = f.as_powers_dict()
                     for base, exp in powers.items():
-                        if not base.free_symbols:
-                            continue
-                        # Strip scalar content (e.g. 5x -> x)
+                        if not base.free_symbols: continue
+
+                        # Cleanup logic
                         content, clean = base.as_content_primitive()
-                        # Normalize sign
-                        first_sym = list(clean.free_symbols)[0]
-                        if clean.coeff(first_sym) < 0:
+
+                        # Fast sign normalization
+                        free_syms = sorted(list(clean.free_symbols), key=lambda s: s.name)
+                        if not free_syms: continue
+                        first_sym = free_syms[0]
+                        coeff = clean.coeff(first_sym)
+
+                        if coeff.is_number and coeff < 0:
                             clean = -clean
+
                         unique_candidates.add(clean)
 
+            print(f"   -> Reduced to {len(unique_candidates)} reasonable candidates.")
+
             # Verify each candidate
+            print("Step 4: Numerically Verifying...")
             for cand in unique_candidates:
-                if verify_hyperplane(cand, matrix, variables):
+                # Double check degree just in case
+                if sp.total_degree(cand) > max_expected_degree:
+                    continue
+
+                # FIX 3: Increased Trials and Range for better accuracy
+                if verify_hyperplane_robust(cand, matrix, variables):
+                    print(f"   [VALID] {cand} = 0")
                     verified_planes.add(cand)
 
             return list(verified_planes)
 
+        def verify_hyperplane_robust(plane_eq, original_matrix, variables):
+            """
+            More robust verification with wider random range to prevent accidental zeros.
+            """
+            if plane_eq == 0: return True
+            if plane_eq.is_Number: return False
+
+            plane_vars = list(plane_eq.free_symbols)
+            if not plane_vars: return False
+            target_var = plane_vars[0]
+            other_vars = [v for v in variables if v != target_var]
+
+            # Run 3 trials to be sure
+            for _ in range(3):
+                # Use wider range (-50 to 50) to avoid "accidental" small integer zeros
+                subs_dict = {v: random.randint(-50, 50) for v in other_vars}
+
+                try:
+                    eq_subbed = plane_eq.subs(subs_dict)
+                    # Solve for target
+                    target_sols = sp.solve(eq_subbed, target_var)
+                    if not target_sols: return False
+
+                    # Pick the first solution
+                    target_val = target_sols[0]
+                    subs_dict[target_var] = target_val
+
+                    # Check determinant
+                    # We use bareiss on the substituted matrix (which is now all numbers)
+                    M_val = original_matrix.subs(subs_dict)
+                    det_val = M_val.det(method='bareiss')
+
+                    if sp.simplify(det_val) != 0:
+                        return False
+                except:
+                    return False
+
+            return True
 
         # M_poly = get_numerator_matrix(mat)
         # raw_factors = triangularize_and_find_hyperplanes(M_poly)
         # solutions = extract_unique_planes_v3(raw_factors)
         # l3 = set()
-        solutions = clean_and_verify_solutions(mat, list(mat.free_symbols))
+        solutions = clean_and_verify_safe(mat, list(mat.free_symbols))
         hps = l.union({Hyperplane(hp, symbols) for hp in solutions})
         # print(f'my hps: {l.union(l3)}')
 
@@ -428,9 +579,9 @@ class ShardExtractor(ExtractionScheme):
         ).log(msg_prefix='\n')
 
         symbols = list(hps)[0].symbols
-        points = [tuple(coord + shift for coord, shift in zip(p, self.shift.values())) for p in list(itertools.product(tuple(list(range(-4, 5))), repeat=len(symbols)))]
+        points = [tuple(coord + shift for coord, shift in zip(p, self.shift.values())) for p in list(itertools.product(tuple(list(range(-2, 3))), repeat=len(symbols)))]
         shard_encodings = set()
-        for p in points:
+        for p in tqdm(points, desc='Checking shard encodings in 4 sided hypercube', **sys_config.TQDM_CONFIG):
             enc = []
             for hp in hps:
                 res = hp.expr.subs({sym: coord for sym, coord in zip(symbols, p)})
@@ -448,7 +599,7 @@ class ShardExtractor(ExtractionScheme):
         #     else:
         #         shards.append(res)
         
-        for enc in shard_encodings:
+        for enc in tqdm(shard_encodings, desc='Creating shard objects', **sys_config.TQDM_CONFIG):
             A, b, syms = Shard.generate_matrices(list(hps), enc)
             shards.append(Shard(self.cmf, self.const, A, b, self.shift, syms))
             # if (shard := Shard(self.cmf, self.const, A, b, self.shift, syms)).is_valid:
