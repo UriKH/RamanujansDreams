@@ -322,19 +322,13 @@ class ShardExtractor(ExtractionScheme):
             """
             Main Driver Function.
             """
-            print("Step 1: Pre-processing Matrix...")
             M_poly = get_numerator_matrix(matrix)
-
-            print("Step 2: Harvesting Candidates (Dirty Method)...")
             raw_candidates = get_candidates_dirty(M_poly)
-
-            print(f"   -> Collected {len(raw_candidates)} raw candidates.")
 
             unique_candidates = set()
             verified_planes = set()
 
             # Clean raw candidates (strip powers, contents)
-            print("Step 3: Cleaning Candidates...")
             for item in raw_candidates:
                 factored = sp.factor(item)
                 if isinstance(factored, sp.Mul):
@@ -345,25 +339,20 @@ class ShardExtractor(ExtractionScheme):
                 for f in factors:
                     powers = f.as_powers_dict()
                     for base, exp in powers.items():
-                        if not base.free_symbols: continue
+                        if not base.free_symbols:
+                            continue
                         # Strip scalar content (e.g. 5x -> x)
                         content, clean = base.as_content_primitive()
                         # Normalize sign
                         first_sym = list(clean.free_symbols)[0]
-                        if clean.coeff(first_sym) < 0: clean = -clean
+                        if clean.coeff(first_sym) < 0:
+                            clean = -clean
                         unique_candidates.add(clean)
 
-            print(f"   -> Reduced to {len(unique_candidates)} unique candidates.")
-
             # Verify each candidate
-            print("Step 4: Numerically Verifying Candidates...")
             for cand in unique_candidates:
-                print(f"   Checking: {cand} = 0 ...", end="")
                 if verify_hyperplane(cand, matrix, variables):
-                    print(" VALID")
                     verified_planes.add(cand)
-                else:
-                    print(" FAKE (Artifact)")
 
             return list(verified_planes)
 
@@ -398,7 +387,7 @@ class ShardExtractor(ExtractionScheme):
         for mat in tqdm(self.cmf.matrices.values()):
             filtered = self.extract_matrix_hps(mat, self.shift, self.symbols)
             filtered_hps.update(set(filtered))
-        Logger(f'number of found hyperplanes: {len(filtered_hps)}')
+        # Logger(f'number of found hyperplanes: {len(filtered_hps)}')
         return filtered_hps
 
     # @staticmethod
@@ -431,15 +420,15 @@ class ShardExtractor(ExtractionScheme):
             ws.append(w)
             bs.append(b)
 
-        for hp in hps:
-            print(hp)
+        # for hp in hps:
+        #     print(hp)
         Logger(
             f'Found {len(hps)} hyperplanes',
             level=Logger.Levels.info
         ).log(msg_prefix='\n')
 
         symbols = list(hps)[0].symbols
-        points = list(itertools.product(tuple(list(range(-4, 5))), repeat=len(symbols)))
+        points = [tuple(coord + shift for coord, shift in zip(p, self.shift.values())) for p in list(itertools.product(tuple(list(range(-4, 5))), repeat=len(symbols)))]
         shard_encodings = set()
         for p in points:
             enc = []
@@ -470,8 +459,8 @@ class ShardExtractor(ExtractionScheme):
         #     f'skipped {skipped} shards',
         #     level=Logger.Levels.warning
         # ).log(msg_prefix='\n')
-        for shard in shards:
-            print(f'start point: {shard.start_coord}')
+        # for shard in shards:
+        #     print(f'start point: {shard.start_coord}')
         Logger(
             f'Found {len(shard_encodings)} shards',
             level=Logger.Levels.info

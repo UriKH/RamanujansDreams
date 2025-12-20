@@ -4,6 +4,7 @@ Representation of a shard
 from dreamer.extraction.hyperplanes import Hyperplane
 from dreamer.utils.schemes.searchable import Searchable
 from dreamer.utils.caching import cached_property
+from dreamer.utils.logger import Logger
 import pulp
 import numpy as np
 import time
@@ -70,8 +71,10 @@ class Shard(Searchable):
                 return 1.0 / n_trials  # Conservative lower bound
             return frac
 
+        # with Logger.simple_timer(f'compute fraction of cone'):
         fraction = _estimate_cone_fraction(self.A)
 
+        # with Logger.simple_timer(f'compute radius of cone'):
         if strict:
             # CASE: We need EXACTLY n_samples inside the cone.
             n_target_safe = int((n_samples / fraction) * 1.2)
@@ -86,7 +89,10 @@ class Shard(Searchable):
             # Edge case: If cone is tiny, ensure we at least look for 1
             if target_yield < 1:
                 target_yield = 1
-        sampler = CHRRSampler(self.A, np.zeros_like(self.b), R=np.ceil(R+0.5), thinning=5, start=np.array(list(self.get_interior_point().values()), dtype=np.float64))
+
+        # print(f'do sampling ... (requested {target_yield})')
+        # with Logger.simple_timer(f'sample trajectories using CHRR [sampled = {target_yield}]'):
+        sampler = CHRRSampler(self.A, np.zeros_like(self.b), R=np.ceil(R + 0.5), thinning=5, start=np.array(list(self.get_interior_point().values()), dtype=np.float64))
         samples, t = sampler.sample(target_yield)
         return {
             Position({sym: sp.sympify(v) for v, sym in zip(p, self.symbols)})
@@ -477,6 +483,9 @@ class Shard(Searchable):
     # def is_valid(self):
     #     return self.start_coord is not None
 
+    def __repr__(self):
+        return f'A={self.A}\nb={self.b}'
+
 @njit(cache=True)
 def gcd_recursive(a, b):
     while b:
@@ -583,7 +592,7 @@ def get_chrr_limits(idx, x, A_cols, b, current_Ax, R_sq):
     return t_min, t_max
 
 @njit(cache=True)
-def chrr_walker(A, A_cols, b, R_sq, start_point, n_desired, thinning, buf_out):
+def chrr_walker(A, A_cols, b, R_sq, start_point, n_desired, thinning, buf_out, max_steps):
     """
     A: (m, d)
     A_cols: (d, m) - Transposed A for fast column access
@@ -602,7 +611,7 @@ def chrr_walker(A, A_cols, b, R_sq, start_point, n_desired, thinning, buf_out):
     # Temp buffer for integer check
     temp_int = np.zeros(d, dtype=np.int64)
 
-    while found < n_desired:
+    while found < n_desired and steps < max_steps:
         # 1. Coordinate Hit-and-Run Step
         # Pick random axis
         axis_idx = np.random.randint(0, d)
@@ -663,7 +672,7 @@ def chrr_walker(A, A_cols, b, R_sq, start_point, n_desired, thinning, buf_out):
                 # Store
                 buf_out[found, :] = temp_int[:]
                 found += 1
-    return steps
+    return found, steps
 
 
 class CHRRSampler:
@@ -687,18 +696,53 @@ class CHRRSampler:
         for _ in range(10000):
             # Sample in small box around origin or uniform in R
             cand = np.random.uniform(-self.R/10, self.R/10, size=d)
-            if np.linalg.norm(cand) > self.R: continue
-            if np.all(self.A @ cand <= self.b):
+            if np.linalg.norm(cand) > self.R:
+                continue
+            if np.all(self.A @ cand < self.b):
                 return cand
         raise RuntimeError("Could not find starting point for CHRR. Cone is too thin or closed.")
 
     def sample(self, n_samples):
         t0 = time.time()
-        start_pt = self.find_start_point()
+        try:
+            start_pt = self.find_start_point()
+        except:
+            start_pt = None
+
+        max_steps_per_round = max(2000 * n_samples * self.thinning, 100_000)
 
         buf = np.zeros((n_samples, self.A.shape[1]), dtype=np.int64)
-        chrr_walker(self.A, self.A_cols, self.b, self.R_sq, start_pt, n_samples, self.thinning, buf)
 
+        retries = 0
+        total_found = 0
+        while total_found < n_samples and retries < 5:
+            # 1. Find valid start point for CURRENT Radius
+            start_pt = self.find_start_point() if start_pt is None else start_pt
+            needed = n_samples #- total_found
+
+            found_now, _ = chrr_walker(
+                self.A, self.A_cols, self.b, self.R_sq,
+                start_pt, needed, self.thinning,
+                buf[total_found:], max_steps_per_round
+            )
+
+            total_found += found_now
+
+            # 3. Check Success
+            if total_found < n_samples:
+                # We failed to find enough points. The Radius is likely too small.
+                # Expand Radius by 50%
+                old_R = self.R
+                self.R *= 1.5
+                self.R_sq = self.R ** 2
+                retries += 1
+        #
+        # chrr_walker(self.A, self.A_cols, self.b, self.R_sq, start_pt, n_samples, self.thinning, buf, max_steps)
+        if retries == 5:
+            Logger(
+                f'Number of trajectories is too small, try increasing radius or number of retries'
+                f' (THIS COULD BE A BUG - CONTACT DEV)', Logger.Levels.warning
+            ).log(msg_prefix='\n')
         unique_set = set(tuple(x) for x in buf)
         final_arr = np.array(list(unique_set))
         return final_arr, time.time() - t0

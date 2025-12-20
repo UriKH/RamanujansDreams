@@ -5,13 +5,13 @@ from dreamer import analysis, search
 from dreamer.extraction.extractor import ShardExtractorMod
 from dreamer.loading import *
 import sympy as sp
-from dreamer import pi, zeta
+from dreamer import pi, zeta, log
 
 
 mp.dps = 300
 
 if __name__ == '__main__':
-    trajectory_compute_func = (lambda d: max(100, 10))
+    trajectory_compute_func = (lambda d: max(40, 10))
 
     config.configure(
         system={
@@ -26,7 +26,7 @@ if __name__ == '__main__':
             # number of trajectories to be auto generated in analysis
         },
         search={
-            'PARALLEL_SEARCH': True,
+            'PARALLEL_SEARCH': False,
             'NUM_TRAJECTORIES_FROM_DIM': trajectory_compute_func
             # number of trajectories to be auto generated in search if needed by the module
         }
@@ -58,11 +58,11 @@ if __name__ == '__main__':
     # calagari = Constant('clageri', L2_chi_minus_3)
     System(
         if_srcs=[ #pFq_formatter(pi, 2, 1, -1, [0, 0, 0]),
-                 pFq_formatter(pi, 2, 1, -1, [0, 0, 0])
+                 pFq_formatter(zeta(2), 4, 3, 1, [0] * 7)
                  # pFq_formatter(pi, 2, 1, -1, [sp.Rational(1, 2)] * 3)
                  ],
         extractor=ShardExtractorMod,
         # extractor=None,
         analyzers=[analysis.AnalyzerModV1],
         searcher=search.SearcherModV1
-    ).run(constants=[pi])
+    ).run(constants=[zeta(2)])

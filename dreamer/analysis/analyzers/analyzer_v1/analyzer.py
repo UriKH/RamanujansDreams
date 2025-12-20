@@ -25,8 +25,11 @@ class Analyzer(AnalyzerScheme):
         managers = {}
 
         for shard in tqdm(self.shards, desc=f'Analyzing shards', **sys_config.TQDM_CONFIG):
+            # with Logger.simple_timer(f'get start point for shard'):
             start = shard.get_interior_point()
+            Logger(f'start: {start}\nShard: {shard}', Logger.Levels.message).log(msg_prefix='\n')
 
+            # with Logger.simple_timer(f'preform search'):
             searcher = SerialSearcher(shard, self.const, use_LIReC=analysis_config.USE_LIReC)
             dm = searcher.search(
                 start,
@@ -38,17 +41,19 @@ class Analyzer(AnalyzerScheme):
 
             identified = dm.identified_percentage
             best_delta = dm.best_delta[0]
+            best_trajectory = dm.best_delta[1]
+
             if analysis_config.PRINT_FOR_EVERY_SEARCHABLE:
                 if best_delta is None:
                     Logger(
                         f'Identified {identified * 100:.2f}% of trajectories as containing "{self.const.name}",'
-                        f' best delta: {best_delta}',
+                        f' best delta: {best_delta} at trajectory: {best_trajectory}',
                         Logger.Levels.info
                     ).log(msg_prefix='\n')
                 else:
                     Logger(
                         f'Identified {identified * 100:.2f}% of trajectories as containing "{self.const.name}",'
-                        f' best delta: {best_delta:.4f}',
+                        f' best delta: {best_delta:.4f} at trajectory: {best_trajectory}',
                         Logger.Levels.info
                     ).log(msg_prefix='\n')
             if identified > analysis_config.IDENTIFY_THRESHOLD and best_delta is not None:

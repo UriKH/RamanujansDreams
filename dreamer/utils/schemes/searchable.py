@@ -58,7 +58,7 @@ class Searchable(ABC):
         values_vec = sp.Matrix(values)
 
         numerator, denom = None, None
-        # with Logger.simple_timer('cahce search'):
+        # with Logger.simple_timer('cache search'):
         for v1, v2 in self.cache:
             v1 = sp.Matrix(v1).T
             v2 = sp.Matrix(v2).T
@@ -72,10 +72,10 @@ class Searchable(ABC):
                 break
 
         # If cache miss - use LIReC
-        # with Logger.simple_timer('cahce miss'):
+        # with Logger.simple_timer('cache miss'):
         if not cache_hit:
             try:
-                # mp.mpf.dps = 400
+                # with Logger.simple_timer('Identify'):
                 res = db.identify([constant.evalf(300)] + t1_col[1:])
             except Exception as e:
                 # print(f'traj={traj_m}, constant={constant}, {e}')
@@ -85,8 +85,14 @@ class Searchable(ABC):
             if not res:
                 return None, None, None
 
-            coeffs = res[0].to_json()['coeffs']
-            p, q = [0] + coeffs[0::2], [0] + coeffs[1::2]
+            res = res[0]
+            res.include_isolated = 0
+            estematedExpr = sp.nsimplify(str(res).rsplit(' ', 1)[0], rational=True)
+            numerator, denom = sp.fraction(estematedExpr)
+            p_dict = numerator.as_coefficients_dict()
+            q_dict = denom.as_coefficients_dict()
+            syms = sp.symbols(f'c:{traj_m.shape[0]}')[1:]
+            p, q = [p_dict[sym] for sym in [1] + list(syms)], [q_dict[sym] for sym in [1] + list(syms)]
 
         # with Logger.simple_timer('check convergence'):
         # Check convergence
@@ -176,13 +182,13 @@ class Searchable(ABC):
             # with Logger.simple_timer('compute_limit - LIReC'):
             if not use_LIReC and not find_limit:
                 print('in order to compute delta must find limit - defaulting to using LIReC')
-            # try:
-            sd.delta, sd.initial_values, sd.limit = self.calc_delta(
-                traj_m, self.const.value_sympy
-            )
-            # except Exception as e:
-            #     print(f'failed with {e} for start={start}, trajectory={traj}')
-            #     sd.delta = None
+            try:
+                sd.delta, sd.initial_values, sd.limit = self.calc_delta(
+                    traj_m, self.const.value_sympy
+                )
+            except Exception as e:
+                print(f'failed with {e} for start={start}, trajectory={traj}')
+                sd.delta = None
                 # raise Exception(f'error {e}: start={start}, trajectory={traj}')
             if sd.delta is not None:
                 sd.LIReC_identify = True
