@@ -57,7 +57,8 @@ class Analyzer(AnalyzerScheme):
                 else:
                     Logger(
                         f'Identified {identified * 100:.2f}% of trajectories as containing "{self.const.name}"'
-                        f'best delta: {best_delta:.4f}\n\t[ at trajectory: {best_trajectory} ]',
+                        f'best delta: {best_delta:.4f}\n\t[ at trajectory: {best_trajectory} ]'
+                        f'\n\tp,q vectors: {dm[best_trajectory].initial_values.tolist()}',
                         Logger.Levels.info
                     ).log(print=prog_bar.write)
             if identified > analysis_config.IDENTIFY_THRESHOLD and best_delta is not None:

@@ -26,7 +26,7 @@ if __name__ == '__main__':
             # number of trajectories to be auto generated in analysis
         },
         search={
-            'PARALLEL_SEARCH': False,
+            'PARALLEL_SEARCH': True,
             'NUM_TRAJECTORIES_FROM_DIM': trajectory_compute_func
             # number of trajectories to be auto generated in search if needed by the module
         }
