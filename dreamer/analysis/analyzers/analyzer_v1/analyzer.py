@@ -24,10 +24,14 @@ class Analyzer(AnalyzerScheme):
     def search(self) -> Dict[Searchable, DataManager]:
         managers = {}
 
-        for shard in tqdm(self.shards, desc=f'Analyzing shards', **sys_config.TQDM_CONFIG):
+        for i, shard in enumerate((prog_bar := tqdm(self.shards, desc=f'Analyzing shards', **sys_config.TQDM_CONFIG))):
             # with Logger.simple_timer(f'get start point for shard'):
             start = shard.get_interior_point()
-            Logger(f'start: {start}\nShard: {shard}', Logger.Levels.message).log(msg_prefix='\n')
+            Logger(f'{">" * 10} SHARD NO. {i + 1} {"<" * 10}').log(msg_prefix='\n', print=prog_bar.write)
+            if analysis_config.SHOW_START_POINT:
+                Logger(f'Chosen shard start point: {start}', Logger.Levels.info).log(print=prog_bar.write)
+            if analysis_config.SHOW_SEARCHABLE:
+                Logger(f'Shard: \n{shard}', Logger.Levels.info).log(print=prog_bar.write)
 
             # with Logger.simple_timer(f'preform search'):
             searcher = SerialSearcher(shard, self.const, use_LIReC=analysis_config.USE_LIReC)
@@ -46,16 +50,16 @@ class Analyzer(AnalyzerScheme):
             if analysis_config.PRINT_FOR_EVERY_SEARCHABLE:
                 if best_delta is None:
                     Logger(
-                        f'Identified {identified * 100:.2f}% of trajectories as containing "{self.const.name}",'
-                        f' best delta: {best_delta} at trajectory: {best_trajectory}',
+                        f'Identified {identified * 100:.2f}% of trajectories as containing "{self.const.name}"'
+                        f'best delta: {best_delta}\n\t [ at trajectory: {best_trajectory} ]',
                         Logger.Levels.info
-                    ).log(msg_prefix='\n')
+                    ).log(print=prog_bar.write)
                 else:
                     Logger(
-                        f'Identified {identified * 100:.2f}% of trajectories as containing "{self.const.name}",'
-                        f' best delta: {best_delta:.4f} at trajectory: {best_trajectory}',
+                        f'Identified {identified * 100:.2f}% of trajectories as containing "{self.const.name}"'
+                        f'best delta: {best_delta:.4f}\n\t[ at trajectory: {best_trajectory} ]',
                         Logger.Levels.info
-                    ).log(msg_prefix='\n')
+                    ).log(print=prog_bar.write)
             if identified > analysis_config.IDENTIFY_THRESHOLD and best_delta is not None:
                 managers[shard] = dm
             else:
@@ -64,9 +68,9 @@ class Analyzer(AnalyzerScheme):
                         f'Ignoring shard - identified <= {analysis_config.IDENTIFY_THRESHOLD * 100}% '
                         f'of tested trajectories',
                         Logger.Levels.info
-                    ).log(msg_prefix='\n')
+                    ).log(print=prog_bar.write)
                 else:
-                    Logger(f'No best delta was found', Logger.Levels.info).log()
+                    Logger(f'No best delta was found', Logger.Levels.warning).log(print=prog_bar.write)
         return managers
 
     def prioritize(self, managers: Dict[Searchable, DataManager], ranks=3) -> Dict[Searchable, Dict[str, int]]:

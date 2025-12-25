@@ -3,6 +3,7 @@ from .database import db_config, DBUsages
 from .analysis import analysis_config
 from .search import search_config
 from .extraction import extraction_config
+from .logging import logging_config
 from ..utils.logger import Logger
 from typing import Dict, List
 
@@ -16,6 +17,7 @@ class ConfigManager:
     extraction = extraction_config
     analysis = analysis_config
     search = search_config
+    logging = logging_config
 
     def configure(self, **overrides):
         """
@@ -47,7 +49,8 @@ class ConfigManager:
             'database': self.database.get_configurations(),
             'extraction': self.extraction.get_configurations(),
             'analysis': self.analysis.get_configurations(),
-            'search': self.search.get_configurations()
+            'search': self.search.get_configurations(),
+            'logging': self.logging.get_configurations(),
         }
 
 
@@ -60,5 +63,6 @@ __all__ = [
     'extraction_config',
     'DBUsages',
     'analysis_config',
-    'search_config'
+    'search_config',
+    'logging_config'
 ]

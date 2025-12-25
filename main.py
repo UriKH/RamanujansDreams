@@ -58,7 +58,7 @@ if __name__ == '__main__':
     # calagari = Constant('clageri', L2_chi_minus_3)
     System(
         if_srcs=[ #pFq_formatter(pi, 2, 1, -1, [0, 0, 0]),
-                 pFq_formatter(zeta(2), 4, 3, 1, [0] * 7)
+                 pFq_formatter(zeta(2), 3, 2, 1, [0] * 5)
                  # pFq_formatter(pi, 2, 1, -1, [sp.Rational(1, 2)] * 3)
                  ],
         extractor=ShardExtractorMod,

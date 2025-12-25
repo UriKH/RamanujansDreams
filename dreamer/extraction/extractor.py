@@ -43,7 +43,7 @@ class ShardExtractorMod(ExtractionModScheme):
         all_shards = defaultdict(list)
 
         consts_itr = iter(list(self.cmf_data.keys()))
-        time.sleep(0.5)
+        Logger.sleep(0.5)
         for const, cmf_list in tqdm(self.cmf_data.items(), desc=f'Extracting shards for "{next(consts_itr).name}"',
                                     **sys_config.TQDM_CONFIG):
             with Exporter.export_stream(
@@ -51,14 +51,14 @@ class ShardExtractorMod(ExtractionModScheme):
                     exists_ok=True, clean_exists=True, fmt=Formats.PICKLE
             ) as export_stream:
                 ind_itr = iter(range(len(cmf_list)))
-                time.sleep(0.5)
+                Logger.sleep(0.5)
                 for cmf_shift in tqdm(cmf_list, desc=f'Computing shards for CMF no. {next(ind_itr) + 1}',
                                       **sys_config.TQDM_CONFIG):
                     extractor = ShardExtractor(const, cmf_shift.cmf, cmf_shift.shift)
                     shards = extractor.extract_searchables()
                     all_shards[const] += shards
                     export_stream(shards)
-                time.sleep(0.5)
+                Logger.sleep(0.5)
         return all_shards
 
 
@@ -512,13 +512,13 @@ class ShardExtractor(ExtractionScheme):
         # raw_factors = triangularize_and_find_hyperplanes(M_poly)
         # solutions = extract_unique_planes_v3(raw_factors)
         # l3 = set()
-        solutions = clean_and_verify_safe(mat, list(mat.free_symbols))
-        hps = l.union({Hyperplane(hp, symbols) for hp in solutions})
+        # solutions = clean_and_verify_safe(mat, list(mat.free_symbols))
+        # hps = l.union({Hyperplane(hp, symbols) for hp in solutions})
         # print(f'my hps: {l.union(l3)}')
 
-        # l2 = set()
-        # solutions = [tuple(*sol.items()) for sol in sp.solve(sp.simplify(mat.det()))]
-        # hps = l2.union({Hyperplane(lhs - rhs, symbols) for lhs, rhs in solutions})
+        # l = set()
+        solutions = [tuple(*sol.items()) for sol in sp.solve(sp.simplify(mat.det()))]
+        hps = l.union({Hyperplane(lhs - rhs, symbols) for lhs, rhs in solutions})
         # hps = l.union(hps)
         # print(f'real hps: {hps}')
 
@@ -581,7 +581,7 @@ class ShardExtractor(ExtractionScheme):
         symbols = list(hps)[0].symbols
         points = [tuple(coord + shift for coord, shift in zip(p, self.shift.values())) for p in list(itertools.product(tuple(list(range(-2, 3))), repeat=len(symbols)))]
         shard_encodings = set()
-        for p in tqdm(points, desc='Checking shard encodings in 4 sided hypercube', **sys_config.TQDM_CONFIG):
+        for p in tqdm(points, desc='Checking shard encodings ...', **sys_config.TQDM_CONFIG):
             enc = []
             for hp in hps:
                 res = hp.expr.subs({sym: coord for sym, coord in zip(symbols, p)})
