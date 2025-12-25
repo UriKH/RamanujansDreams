@@ -1,4 +1,6 @@
 from abc import ABC, abstractmethod
+
+import numpy as np
 from ramanujantools import Position, Limit
 from ramanujantools.cmf import CMF
 import ramanujantools as rt
@@ -10,6 +12,7 @@ import mpmath as mp
 from dreamer.utils.logger import Logger
 from dreamer.utils.storage.storage_objects import SearchData, SearchVector
 import sympy as sp
+from dreamer.configs.search import search_config
 
 
 n = sp.symbols('n')
@@ -30,7 +33,7 @@ class Searchable(ABC):
     def dim(self):
         return self.cmf.dim()
 
-    def calc_delta(self, traj_m, constant: sp.Expr) \
+    def calc_delta(self, traj_m, constant: sp.Expr, traj_len: float) \
             -> Tuple[Optional[float], Optional[rt.Matrix], Optional[float]]:
         """
         Computes delta for a given trajectory, start point and constant.
@@ -43,7 +46,7 @@ class Searchable(ABC):
         # Do walk
         # with Logger.simple_timer('walk'):
         try:
-            walked = traj_m.walk({n: 1}, 1000, {n: 0})
+            walked = traj_m.walk({n: 1}, search_config.DEPTH_FROM_TRAJECTORY_LEN(traj_len) , {n: 0})
             walked = walked.inv().T
         except Exception as e:
             Logger(f'Unexpected exception when trying to walk, ignoring trajectory', Logger.Levels.warning).log(msg_prefix='\n')
@@ -134,7 +137,18 @@ class Searchable(ABC):
             return None, None, None
 
         delta = -1 - sp.log(err) / sp.log(denom)
-        return float(delta.evalf(10)), rt.Matrix([p, q]), 0 #float(limit.as_float())
+        if delta == sp.oo or delta == sp.zoo:
+            if err == 0:
+                Logger(f'delta guardrails failed, got delta={delta} with: error=0',
+                       Logger.Levels.warning).log(msg_prefix='\n')
+            if denom == 0:
+                Logger(f'delta guardrails failed, got delta={delta} with: denom=0',
+                       Logger.Levels.warning).log(msg_prefix='\n')
+            if denom != 0 and err != 0:
+                Logger(f'delta guardrails failed, got delta={delta} with: \nerror={err} \ndenom = {denom}', Logger.Levels.warning).log(msg_prefix='\n')
+            return None, None, None
+
+        return float(delta.evalf(10)), rt.Matrix([p, q]), float(limit.as_float())
 
     def compute_trajectory_data(self, traj: Position, start: Position,
                                 *, find_limit: bool = False,
@@ -182,14 +196,9 @@ class Searchable(ABC):
             # with Logger.simple_timer('compute_limit - LIReC'):
             if not use_LIReC and not find_limit:
                 print('in order to compute delta must find limit - defaulting to using LIReC')
-            try:
-                sd.delta, sd.initial_values, sd.limit = self.calc_delta(
-                    traj_m, self.const.value_sympy
-                )
-            except Exception as e:
-                print(f'failed with {e} for start={start}, trajectory={traj}')
-                sd.delta = None
-                # raise Exception(f'error {e}: start={start}, trajectory={traj}')
+            sd.delta, sd.initial_values, sd.limit = self.calc_delta(
+                traj_m, self.const.value_sympy, float(np.sqrt(np.sum(np.array(list(traj.values())) ** 2)))
+            )
             if sd.delta is not None:
                 sd.LIReC_identify = True
         return sd
