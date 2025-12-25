@@ -72,25 +72,23 @@ class AnalyzerModV1(AnalyzerModScheme):
             return merged
 
         queues = {c: [] for c in self.cmf_data.keys()}
-        for constant, shards in tqdm(self.cmf_data.items(), desc='Analyzing constants and their CMFs',
-                                     **sys_config.TQDM_CONFIG):
+        for constant, shards in (prog_bar := tqdm(self.cmf_data.items(), desc='Analyzing constants and their CMFs',
+                                                  **sys_config.TQDM_CONFIG)):
             queue: List[Dict[Searchable, Dict[str, int]]] = []
-
-            Logger.sleep(1)
             Logger(
                 Logger.buffer_print(sys_config.LOGGING_BUFFER_SIZE, f'Analyzing for {constant.name}', '=')
-            ).log(msg_prefix='\n')
+            ).log(msg_prefix='\n', print=prog_bar.write)
             # for s in shards:
             cmf = shards[0].cmf
             if issubclass(cmf.__class__, CMF):
                 Logger(
                     Logger.buffer_print(sys_config.LOGGING_BUFFER_SIZE,
                                         f'Current CMF is manual with dim={cmf.dim()} and shift {shards[0].shift}', '=')
-                ).log(msg_prefix='\n')
+                ).log(msg_prefix='\n', print=prog_bar.write)
             else:
                 Logger(
                     Logger.buffer_print(sys_config.LOGGING_BUFFER_SIZE, f'Current CMF: {cmf} with shift {shards[0].shift}', '=')
-                ).log(msg_prefix='\n')
+                ).log(msg_prefix='\n', print=prog_bar.write)
                 # TODO: add option to use mpf - depends on the use_LIReC I guess. maybe there is a way to use only sympy format
             Logger.sleep(1)
             analyzer = Analyzer(constant, shards[0].cmf, shards)

@@ -16,6 +16,9 @@ class SearchVector:
     def __hash__(self):
         return hash((self.start, self.trajectory))
 
+    def __eq__(self, other):
+        return self.start == other.start and self.trajectory == other.trajectory
+
 
 @dataclass
 class SearchData:
