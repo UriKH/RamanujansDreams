@@ -3,9 +3,9 @@ import time
 import inspect
 from enum import Enum, auto
 from contextlib import contextmanager
+from dreamer.configs import logging_config
 
 
-# TODO: Convert from this logger to the "logging" library
 class Logger:
     """
     Logging for terminal interface and debugging
@@ -48,7 +48,7 @@ class Logger:
             result = func(*args, **kwarg)
             end = time.time()
 
-            if round(end - start, 3) != 0:
+            if round(end - start, 3) != 0 and logging_config.PROFILE:
                 Logger(
                     self.msg + f'Call to "{func.__name__}" finished in {(end - start):.3f} seconds',
                     self.level
@@ -56,7 +56,7 @@ class Logger:
             return result
         return wrapper
 
-    def log(self, msg_prefix='', in_function: bool = False):
+    def log(self, msg_prefix='', in_function: bool = False, print=print):
         """
         Log a message with it's logging level to the standard output
         :param msg_prefix: the message level prefix for printing
@@ -133,4 +133,11 @@ class Logger:
             yield
         finally:
             end = time.perf_counter()
-            print(f"{label}: {end - start:.6f} seconds")
+            if logging_config.PROFILE:
+                print(f"{label}: {end - start:.6f} seconds")
+
+    @staticmethod
+    def sleep(t: float):
+
+        if logging_config.SLEEP_TO_PRINT:
+            time.sleep(t)

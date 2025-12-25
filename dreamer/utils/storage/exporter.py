@@ -5,7 +5,6 @@ from ..types import *
 from .formats import *
 import shutil
 from contextlib import contextmanager
-from .storage_objects import DataManager
 
 
 class Exporter:

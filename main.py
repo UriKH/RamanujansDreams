@@ -2,6 +2,7 @@ import mpmath as mp
 import dreamer.loading
 from dreamer import System, config
 from dreamer import analysis, search
+from dreamer.extraction.extractor import ShardExtractorMod
 from dreamer.loading import *
 import sympy as sp
 from dreamer import pi, zeta, log
@@ -10,9 +11,7 @@ from dreamer import pi, zeta, log
 mp.dps = 300
 
 if __name__ == '__main__':
-    trajectory_compute_func = (lambda d: max(10 ** (d - 1), 10))
-    analysis_traj = (lambda d: max(10 ** (d - 1) * 0.5, 10))
-    search_traj = (lambda d: max((10 ** (d + 1) * 2), 10))
+    trajectory_compute_func = (lambda d: max(40, 10))
 
     config.configure(
         system={
@@ -27,19 +26,18 @@ if __name__ == '__main__':
             # number of trajectories to be auto generated in analysis
         },
         search={
-            'NUM_TRAJECTORIES_FROM_DIM': search_traj
+            'PARALLEL_SEARCH': False,
+            'NUM_TRAJECTORIES_FROM_DIM': trajectory_compute_func
             # number of trajectories to be auto generated in search if needed by the module
         }
     )
+    from dreamer import Constant
 
-    dreamer.loading.DBModScheme.export_future_append_to_json(
-        [
-            pFq_formatter(log(2), 2, 1, -1, [0, 0, 0])
-        ], exits_ok=True
-    )
+    from sympy import symbols, summation, oo
 
     System(
-        if_srcs=[BasicDBMod(json_path='command.json')],
+        if_srcs=[pFq_formatter(zeta(2), 3, 2, 1, [0] * 5)],
+        extractor=ShardExtractorMod,
         analyzers=[analysis.AnalyzerModV1],
         searcher=search.SearcherModV1
-    ).run(constants=[log(2)])
+    ).run(constants=[zeta(2)])

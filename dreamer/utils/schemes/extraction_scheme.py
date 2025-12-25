@@ -7,24 +7,26 @@ from dreamer.utils.constants.constant import Constant
 from abc import abstractmethod, ABC
 
 
-class AnalyzerModScheme(Module):
+class ExtractionModScheme(Module):
     def __init__(self,
-                 cmf_data: Dict[Constant, List[Searchable]],
+                 cmf_data: Dict[Constant, List[ShiftCMF]],
                  name: Optional[str] = None, desc: Optional[str] = None, version: Optional[str] = None
                  ):
         super().__init__(name, desc, version)
         self.cmf_data = cmf_data
 
     @abstractmethod
-    def execute(self) -> Dict[Constant, List[Searchable]]:
+    def execute(self) -> Optional[Dict[Constant, List[Searchable]]]:
         raise NotImplementedError
 
 
-class AnalyzerScheme(ABC):
+class ExtractionScheme(ABC):
+    def __init__(self, const: Constant, cmf: CMF, shift: Position):
+        self.const = const
+        self.cmf: CMF = cmf
+        self.shift: Position = shift
+
     @abstractmethod
-    def search(self) -> Dict[Searchable, DataManager]:
+    def extract_searchables(self) -> List[Searchable]:
         raise NotImplementedError
-
-    @abstractmethod
-    def prioritize(self, managers: Dict[Searchable, DataManager], ranks: int) -> Dict[Searchable, Dict[Constant, int]]:
-        raise NotImplementedError
+    

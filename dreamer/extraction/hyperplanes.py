@@ -88,7 +88,6 @@ class Hyperplane:
         :param shift: a shift in each axis
         :return: The shifted hyperplane
         """
-        # TODO: I think this is wrong, maybe should be a minus instead of a plus here????
         expr = self.expr.subs({sym: sym - shift[sym] for sym in self.expr.free_symbols})
         return Hyperplane(expr, symbols=self.symbols)
 

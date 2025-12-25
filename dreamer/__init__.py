@@ -7,7 +7,8 @@ from .configs import (
     sys_config,
     db_config,
     analysis_config,
-    search_config
+    search_config,
+    logging_config
 )
 
 

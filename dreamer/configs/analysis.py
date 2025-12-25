@@ -26,6 +26,8 @@ class AnalysisConfig(Configurable):
     PRINT_SHARDS: bool = True
     PRINT_FOR_EVERY_SEARCHABLE: bool = True         # print the result of each analysis of a searchable object
     WARN_ON_EMPTY_SHARDS: bool = False              # warn user if start points could not be found in the shards
+    SHOW_START_POINT: bool = True
+    SHOW_SEARCHABLE: bool = False
 
     # ============================= Analysis features =============================
     USE_LIReC: bool = True                  # use LIReC in analysis instead of RT functions
