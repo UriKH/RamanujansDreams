@@ -100,7 +100,7 @@ class Searchable(ABC):
         # with Logger.simple_timer('check convergence'):
         # Check convergence
         try:
-            # converge, (_, limit, _) = self._does_converge(traj_m, p, q)
+            converge, (_, limit, _) = self._does_converge(traj_m, p, q)
             converge = True
         except Exception as e:
             print(f'convergence exception: {e}')
@@ -197,7 +197,7 @@ class Searchable(ABC):
             if not use_LIReC and not find_limit:
                 print('in order to compute delta must find limit - defaulting to using LIReC')
             sd.delta, sd.initial_values, sd.limit = self.calc_delta(
-                traj_m, self.const.value_sympy, float(np.sqrt(np.sum(np.array(list(traj.values())) ** 2)))
+                traj_m, self.const.value_sympy, np.sqrt(np.sum(np.array(list(traj.values()), dtype=np.float64) ** 2)).astype(float)
             )
             if sd.delta is not None:
                 sd.LIReC_identify = True

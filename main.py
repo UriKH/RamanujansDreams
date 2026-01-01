@@ -22,7 +22,7 @@ if __name__ == '__main__':
         analysis={
             'IDENTIFY_THRESHOLD': 0,            # ignore shards with less than 20% identified trajectories as converge
                                                 # to the constant
-            'NUM_TRAJECTORIES_FROM_DIM': analysis_traj
+            'NUM_TRAJECTORIES_FROM_DIM': trajectory_compute_func
             # number of trajectories to be auto generated in analysis
         },
         search={

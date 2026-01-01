@@ -23,6 +23,8 @@ from dreamer.utils.constants.constant import Constant
 from dreamer.utils.schemes.searchable import Searchable
 from dreamer.utils.storage.exporter import Exporter
 from dreamer.utils.storage.formats import Formats
+from ramanujantools.cmf.d_finite import theta
+
 
 from tqdm import tqdm
 import numpy as np
@@ -94,433 +96,8 @@ class ShardExtractor(ExtractionScheme):
                 l.add(Hyperplane(lhs - rhs, symbols))
 
         # Zero det solutions
-        def get_numerator_matrix(matrix):
-            """
-            Step 1: Clears denominators from a matrix of rational functions.
-            Returns a matrix of polynomials.
-            """
-            rows, cols = matrix.shape
-            matrix_poly = sp.zeros(rows, cols)
-
-            for i in range(rows):
-                row = matrix.row(i)
-                # 1. Gather denominators
-                denoms = [sp.fraction(entry)[1] for entry in row]
-                # 2. Find LCM for the row
-                row_lcm = sp.lcm(denoms)
-                # 3. Multiply row by LCM to get purely polynomial entries
-                for j in range(cols):
-                    # simplify is needed to cancel the denominator with the LCM
-                    matrix_poly[i, j] = sp.simplify(row[j] * row_lcm)
-
-            return matrix_poly
-
-        def triangularize_and_find_hyperplanes(matrix):
-            """
-            Step 2: Performs Gaussian Elimination while aggressively factoring
-            intermediate terms to isolate hyperplane solutions.
-            """
-            # Work on a copy to avoid modifying original
-            M = matrix.copy()
-            rows, cols = M.shape
-
-            # print(f"--- Starting Factored Gaussian Elimination ({rows}x{cols}) ---")
-
-            # We will collect factors found on the diagonal
-            potential_factors = []
-
-            for k in range(rows - 1):
-                pivot = M[k, k]
-
-                # A. Swap if pivot is identically zero
-                if pivot == 0:
-                    for i in range(k + 1, rows):
-                        if M[i, k] != 0:
-                            M.row_swap(k, i)
-                            pivot = M[k, k]
-                            # print(f"   [Col {k}] Swapped row {k} with {i}")
-                            break
-                    else:
-                        # If column is all zero, determinant is 0.
-                        # This means 0 is a factor (always singular).
-                        return [sp.Integer(0)]
-
-                # B. Store the pivot as a potential factor
-                potential_factors.append(pivot)
-
-                # C. Elimination Loop
-                for i in range(k + 1, rows):
-                    target_val = M[i, k]
-
-                    if target_val == 0:
-                        continue
-
-                    # We use the cross-multiplication method to stay in Polynomial land:
-                    # Row_i = (pivot * Row_i) - (target * Row_k)
-                    # This avoids fractions entirely.
-
-                    for j in range(k, cols):
-                        # Calculate the unsimplified new entry
-                        new_val = (pivot * M[i, j]) - (target_val * M[k, j])
-
-                        # CRITICAL: Factor immediately.
-                        # This stops the expression from exploding and reveals the hyperplanes.
-                        M[i, j] = sp.factor(new_val)
-
-                # print(f"   [Col {k}] Elimination done. Matrix entries factored.")
-
-            # Append the final element (bottom right)
-            potential_factors.append(M[rows - 1, cols - 1])
-
-            return potential_factors
-
-        def extract_unique_planes_v3(factors):
-            unique_planes = set()
-
-            for term in factors:
-                # 1. Factor to separate products
-                factored_term = sp.factor(term)
-
-                # 2. Get base factors (stripping exponents)
-                powers_map = factored_term.as_powers_dict()
-
-                for base, exponent in powers_map.items():
-                    if not base.free_symbols:
-                        continue
-
-                    # --- THE MAGIC FIX ---
-                    # as_content_primitive() separates the scalar (1/5) from the equation (x+y+5)
-                    # We discard the content (scalar) and keep the clean equation.
-                    content, integer_plane = base.as_content_primitive()
-
-                    # Optional: Ensure the first coefficient is positive for consistency
-                    # (e.g., turns -x - y - 5 = 0 into x + y + 5 = 0)
-                    # We grab the coeff of the first variable we find
-                    first_symbol = list(integer_plane.free_symbols)[0]
-                    if sp.Poly(integer_plane).total_degree() > 1:
-                        continue
-                    # if integer_plane.coeff(first_symbol) < 0:
-                    #     integer_plane = -integer_plane
-
-                    unique_planes.add(integer_plane)
-
-            return list(unique_planes)
-
-        # ==================================== SECOND METHOD ===================================
-        def get_numerator_matrix(matrix):
-            """Clears denominators to get a polynomial matrix."""
-            rows, cols = matrix.shape
-            matrix_poly = sp.zeros(rows, cols)
-            for i in range(rows):
-                row = matrix.row(i)
-                denoms = [sp.fraction(entry)[1] for entry in row]
-                row_lcm = sp.lcm(denoms)
-                for j in range(cols):
-                    matrix_poly[i, j] = sp.simplify(row[j] * row_lcm)
-            return matrix_poly
-
-        def get_candidates_dirty(matrix):
-            """
-            Runs a fast, 'dirty' elimination that collects potential factors.
-            It intentionally collects 'too much' to ensure we don't miss anything.
-            """
-            M = matrix.copy()
-            rows, cols = M.shape
-            candidates = []
-
-            for k in range(rows - 1):
-                pivot = M[k, k]
-
-                # 1. Pivot Strategy: Just swap if 0
-                if pivot == 0:
-                    for i in range(k + 1, rows):
-                        if M[i, k] != 0:
-                            M.row_swap(k, i)
-                            pivot = M[k, k]
-                            break
-                    else:
-                        return [sp.Integer(0)]  # Zero determinant
-
-                # CRITICAL: The pivot itself might be a solution!
-                candidates.append(pivot)
-
-                for i in range(k + 1, rows):
-                    if M[i, k] == 0: continue
-
-                    # Cross-multiply
-                    factor_val = M[i, k]
-                    for j in range(k, cols):
-                        # We calculate the new value
-                        val = (pivot * M[i, j]) - (factor_val * M[k, j])
-                        # We factor it to keep it clean
-                        M[i, j] = sp.factor(val)
-
-                    # Collect the diagonal entry as we create it
-                    if i == j:  # specific check for diagonal
-                        candidates.append(M[i, j])
-
-            # Add the final element
-            candidates.append(M[rows - 1, cols - 1])
-            return candidates
-
-        def verify_hyperplane(plane_eq, original_matrix, variables, trials=2):
-            """
-            Checks if a candidate hyperplane is a TRUE solution.
-            Method: Monte Carlo Substitution.
-            1. Pick random integers for all variables EXCEPT one.
-            2. Solve for the last variable to force the point onto the hyperplane.
-            3. Plug point into original matrix.
-            4. Check if Det == 0.
-            """
-            # 0. Trivial check
-            if plane_eq == 0: return True
-            if plane_eq.is_Number: return False
-
-            # 1. Pick a target variable to solve for (e.g., z)
-            # We need a variable that is actually in the plane equation
-            plane_vars = list(plane_eq.free_symbols)
-            if not plane_vars: return False
-            target_var = plane_vars[0]  # Just pick the first one
-            other_vars = [v for v in variables if v != target_var]
-
-            for _ in range(trials):
-                # 2. Generate random point P
-                # Map other variables to random integers
-                subs_dict = {v: random.randint(1, 10) for v in other_vars}
-
-                # Calculate what the target variable MUST be to stay on the plane
-                # plane_eq(x,y,z) = 0  =>  solve for target_var
-                try:
-                    # Solve eq = 0 for target_var numerically
-                    # We treat the random integers as constants
-                    eq_subbed = plane_eq.subs(subs_dict)
-                    target_val_solutions = sp.solve(eq_subbed, target_var)
-
-                    if not target_val_solutions: return False  # No solution? Bad candidate.
-                    target_val = target_val_solutions[0]
-
-                    # Update dict with the calculated coordinate
-                    subs_dict[target_var] = target_val
-
-                except:
-                    return False
-
-                # 3. Plug P into Original Matrix
-                # We assume original matrix might have rational entries, so we compute det
-                # We can use domain='QQ' for speed since we substituted numbers
-                try:
-                    M_val = original_matrix.subs(subs_dict)
-                    # Use bareiss for fast numerical determinant
-                    det_val = M_val.det(method='bareiss')
-
-                    # 4. Check if Det is ZERO
-                    # We use simplify to handle potentially complex cancellations
-                    if sp.simplify(det_val) != 0:
-                        return False
-                except:
-                    return False
-
-            return True
-
-        # def clean_and_verify_solutions(matrix, variables):
-        #     """
-        #     Main Driver Function.
-        #     """
-        #     M_poly = get_numerator_matrix(matrix)
-        #     raw_candidates = get_candidates_dirty(M_poly)
-        #
-        #     unique_candidates = set()
-        #     verified_planes = set()
-        #
-        #     # Clean raw candidates (strip powers, contents)
-        #     for item in raw_candidates:
-        #         factored = sp.factor(item)
-        #         if isinstance(factored, sp.Mul):
-        #             factors = factored.args
-        #         else:
-        #             factors = [factored]
-        #
-        #         for f in factors:
-        #             powers = f.as_powers_dict()
-        #             for base, exp in powers.items():
-        #                 if not base.free_symbols:
-        #                     continue
-        #
-        #                 content, clean = base.as_content_primitive()
-        #
-        #                 # 3. FAST Sign Normalization
-        #                 # We want to turn (-x - y) into (x + y)
-        #                 # But we must avoid crashing on (x*y + z)
-        #
-        #                 # Get a deterministic 'first' symbol (e.g., 'x')
-        #                 # (Sorting a list of 5 symbols is instant)
-        #                 free_syms = sorted(list(clean.free_symbols), key=lambda s: s.name)
-        #                 first_sym = free_syms[0]
-        #
-        #                 # Get the coefficient of this symbol
-        #                 # e.g., in (-2x + y), coeff of x is -2.
-        #                 coeff = clean.coeff(first_sym)
-        #
-        #                 # CRITICAL FIX: Only compare if it's a pure Number!
-        #                 # If coeff is 'y', we skip this step.
-        #                 if coeff.is_number and coeff < 0:
-        #                     clean = -clean
-        #
-        #                 unique_candidates.add(clean)
-        #
-        #                 # # Strip scalar content (e.g. 5x -> x)
-        #                 # content, clean = base.as_content_primitive()
-        #                 # # Normalize sign
-        #                 # first_sym = list(clean.free_symbols)[0]
-        #                 # if sp.total_degree(clean) > 1:
-        #                 #     continue
-        #                 # if clean.coeff(first_sym) < 0:
-        #                 #     clean = -clean
-        #                 # unique_candidates.add(clean)
-        #
-        #     # Verify each candidate
-        #     for cand in unique_candidates:
-        #         if verify_hyperplane(cand, matrix, variables):
-        #             verified_planes.add(cand)
-        #
-        #     return list(verified_planes)
-
-        import sympy as sp
-        import random
-
-        def clean_and_verify_safe(matrix, variables, max_expected_degree=3):
-            """
-            Stabilized version:
-            1. Deterministic (Fixed Seed)
-            2. Prevents hangs (Degree Guard)
-            3. Filters artifacts robustly
-            """
-            # FIX 1: Set Random Seed for reproducibility
-            # This ensures "different runs" always give the SAME result.
-            random.seed(42)
-
-            print("Step 1: Pre-processing Matrix...")
-            M_poly = get_numerator_matrix(matrix)
-
-            print("Step 2: Harvesting Candidates (Dirty Method)...")
-            raw_candidates = get_candidates_dirty(M_poly)
-            print(f"   -> Collected {len(raw_candidates)} raw candidates.")
-
-            unique_candidates = set()
-            verified_planes = set()
-
-            print("Step 3: Cleaning Candidates (With Degree Guard)...")
-            for item in raw_candidates:
-                # FIX 2: THE DEGREE GUARD
-                # Before doing expensive operations, check complexity.
-                # If a polynomial is massive, it's definitely an artifact of the algorithm.
-                try:
-                    # Using total_degree is fast. If it fails or is huge, skip.
-                    deg = sp.total_degree(item)
-                    if deg > max_expected_degree:
-                        # print(f"      [Skipping garbage of degree {deg}]")
-                        continue
-                except:
-                    continue
-
-                # Now it is safe to factor
-                try:
-                    factored = sp.factor(item)
-                except:
-                    continue
-
-                if isinstance(factored, sp.Mul):
-                    factors = factored.args
-                else:
-                    factors = [factored]
-
-                for f in factors:
-                    powers = f.as_powers_dict()
-                    for base, exp in powers.items():
-                        if not base.free_symbols: continue
-
-                        # Cleanup logic
-                        content, clean = base.as_content_primitive()
-
-                        # Fast sign normalization
-                        free_syms = sorted(list(clean.free_symbols), key=lambda s: s.name)
-                        if not free_syms: continue
-                        first_sym = free_syms[0]
-                        coeff = clean.coeff(first_sym)
-
-                        if coeff.is_number and coeff < 0:
-                            clean = -clean
-
-                        unique_candidates.add(clean)
-
-            print(f"   -> Reduced to {len(unique_candidates)} reasonable candidates.")
-
-            # Verify each candidate
-            print("Step 4: Numerically Verifying...")
-            for cand in unique_candidates:
-                # Double check degree just in case
-                if sp.total_degree(cand) > max_expected_degree:
-                    continue
-
-                # FIX 3: Increased Trials and Range for better accuracy
-                if verify_hyperplane_robust(cand, matrix, variables):
-                    print(f"   [VALID] {cand} = 0")
-                    verified_planes.add(cand)
-
-            return list(verified_planes)
-
-        def verify_hyperplane_robust(plane_eq, original_matrix, variables):
-            """
-            More robust verification with wider random range to prevent accidental zeros.
-            """
-            if plane_eq == 0: return True
-            if plane_eq.is_Number: return False
-
-            plane_vars = list(plane_eq.free_symbols)
-            if not plane_vars: return False
-            target_var = plane_vars[0]
-            other_vars = [v for v in variables if v != target_var]
-
-            # Run 3 trials to be sure
-            for _ in range(3):
-                # Use wider range (-50 to 50) to avoid "accidental" small integer zeros
-                subs_dict = {v: random.randint(-50, 50) for v in other_vars}
-
-                try:
-                    eq_subbed = plane_eq.subs(subs_dict)
-                    # Solve for target
-                    target_sols = sp.solve(eq_subbed, target_var)
-                    if not target_sols: return False
-
-                    # Pick the first solution
-                    target_val = target_sols[0]
-                    subs_dict[target_var] = target_val
-
-                    # Check determinant
-                    # We use bareiss on the substituted matrix (which is now all numbers)
-                    M_val = original_matrix.subs(subs_dict)
-                    det_val = M_val.det(method='bareiss')
-
-                    if sp.simplify(det_val) != 0:
-                        return False
-                except:
-                    return False
-
-            return True
-
-        # M_poly = get_numerator_matrix(mat)
-        # raw_factors = triangularize_and_find_hyperplanes(M_poly)
-        # solutions = extract_unique_planes_v3(raw_factors)
-        # l3 = set()
-        # solutions = clean_and_verify_safe(mat, list(mat.free_symbols))
-        # hps = l.union({Hyperplane(hp, symbols) for hp in solutions})
-        # print(f'my hps: {l.union(l3)}')
-
-        # l = set()
         solutions = [tuple(*sol.items()) for sol in sp.solve(sp.simplify(mat.det()))]
         hps = l.union({Hyperplane(lhs - rhs, symbols) for lhs, rhs in solutions})
-        # hps = l.union(hps)
-        # print(f'real hps: {hps}')
 
         filtered_hps = []
         for hp in hps:
@@ -535,9 +112,25 @@ class ShardExtractor(ExtractionScheme):
         :return: two sets - the filtered hyperplanes and the shifted hyperplanes
         """
         filtered_hps = set()
-        for mat in tqdm(self.cmf.matrices.values()):
-            filtered = self.extract_matrix_hps(mat, self.shift, self.symbols)
-            filtered_hps.update(set(filtered))
+        symbols = list(self.cmf.matrices.keys())
+        for s in symbols:
+            zeros = sp.solve(determinant_from_char_poly(self.cmf.p, self.cmf.q, self.cmf.z, s))
+            zeros = [Hyperplane(lhs - rhs, symbols) for solution in zeros for lhs, rhs in solution.items()]
+            filtered_hps.update(set(zeros))
+
+            poles = set()
+            for v in self.cmf.matrices[s].iter_values():
+                if (den := v.as_numer_denom()[1]) == 1:
+                    continue
+
+                solutions = {(sym, sol) for sym in den.free_symbols for sol in sp.solve(sp.simplify(den), sym)}
+                for lhs, rhs in solutions:
+                    poles.add(Hyperplane(lhs - rhs, symbols))
+            filtered_hps.update(poles)
+
+        # for mat in tqdm(self.cmf.matrices.values()):
+        #     filtered = self.extract_matrix_hps(mat, self.shift, self.symbols)
+        #     filtered_hps.update(set(filtered))
         # Logger(f'number of found hyperplanes: {len(filtered_hps)}')
         return filtered_hps
 
@@ -617,6 +210,28 @@ class ShardExtractor(ExtractionScheme):
             level=Logger.Levels.info
         ).log(msg_prefix='\n')
         return shards
+
+
+def determinant_from_char_poly(p, q, z, axis: sp.Symbol):
+    # substitute in differential equation & extract free coeff of normalized characteristic poly
+    # if y axis then increment the parameter
+    is_y_shift = True if axis.name.startswith("y") else False
+    coeff = axis - 1 if axis.name.startswith("y") else axis
+    S = sp.symbols("S")  # note that for a y shift, we're calculating the char poly for S^{-1}
+    theta_subs = coeff * S - coeff
+
+    differential_equation = pFq.differential_equation(p, q, z).subs({z: z})
+
+    char_poly_for_S = sp.monic(pFq.differential_equation(p, q, z).subs({theta: theta_subs}),
+                               S)  # how does this handle z eval?
+    free_coeff = char_poly_for_S.coeff_monomial(1)  # can also just subs
+
+    matrix_dim = char_poly_for_S.degree()
+
+    if is_y_shift:
+        return sp.factor((((-1) ** matrix_dim) / free_coeff).subs({axis: axis + 1}))
+    else:
+        return sp.factor((-1) ** matrix_dim * free_coeff)
 
 
 class HyperplaneArrangement:
@@ -752,6 +367,7 @@ class HyperplaneArrangement:
                     queue.append(new_s_tuple)
 
         return results
+
 
 if __name__ == '__main__':
     x0, x1, y0, n = sp.symbols('x0 x1 y0 n')
