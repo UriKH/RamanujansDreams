@@ -180,7 +180,11 @@ class ShardExtractor(ExtractionScheme):
                 res = hp.expr.subs({sym: coord for sym, coord in zip(symbols, p)})
                 if res == 0:
                     break
-                enc.append(1 if res > 0 else -1)
+                if res > 0:
+                    res = 1
+                elif res < 0:
+                    res = -1
+                enc.append(res)
             if len(enc) == len(hps):
                 shard_encodings.add(tuple(enc))
         # with Logger.simple_timer(f'extracting shard encodings'):

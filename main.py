@@ -11,7 +11,7 @@ from dreamer import pi, zeta, log
 mp.dps = 300
 
 if __name__ == '__main__':
-    trajectory_compute_func = (lambda d: max(40, 10))
+    trajectory_compute_func = (lambda d: max(100, 10))
 
     config.configure(
         system={
@@ -36,8 +36,8 @@ if __name__ == '__main__':
     from sympy import symbols, summation, oo
 
     System(
-        if_srcs=[pFq_formatter(zeta(2), 3, 2, 1, [0] * 5)],
+        if_srcs=[pFq_formatter(log(2), 2, 1, -1, [0, 0, 0])],
         extractor=ShardExtractorMod,
         analyzers=[analysis.AnalyzerModV1],
         searcher=search.SearcherModV1
-    ).run(constants=[zeta(2)])
+    ).run(constants=[log(2)])

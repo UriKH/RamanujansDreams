@@ -8,8 +8,8 @@ include = ["dreamer*"]
 
 [project]
 name = "ramanujans-dreams"
-version = "0.1.0"
-description = "System for modular automated search inside CMFs for irrationality of constants"
+version = "0.0.1"
+description = "System for modular automated search in CMFs for irrationality of constants"
 authors = [{ name="Uri K.H." }]
 dependencies = [
     "peewee",
@@ -20,6 +20,7 @@ dependencies = [
     "mpmath",
     "networkx",
     "tqdm",
+    "numba",
     "requests",
     "pandas",
     "scipy",

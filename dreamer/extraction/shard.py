@@ -5,12 +5,10 @@ from dreamer.extraction.hyperplanes import Hyperplane
 from dreamer.utils.schemes.searchable import Searchable
 from dreamer.utils.caching import cached_property
 from dreamer.utils.logger import Logger
-import pulp
 import numpy as np
 import time
 from numba import njit
 from scipy.special import gamma, zeta
-from dreamer.configs.analysis import analysis_config
 from dreamer.utils.types import *
 from dreamer.utils.constants.constant import Constant
 
@@ -126,40 +124,6 @@ class Shard(Searchable):
         R = term ** (1.0 / d)
 
         return R
-
-    @staticmethod
-    # @lru_cache
-    def __find_integer_point_milp(
-            A: np.array, b: np.array, xmin: Optional[List[int]] = None, xmax: Optional[List[int]] = None
-    ) -> Optional[np.array]:
-        """
-        Use PuLP MILP CBC solver to find feasible point
-        :param A: Original hyperplane constraints (linear terms)
-        :param b: Original hyperplane constraints (free terms)
-        :param xmin: minimum bound on each variable
-        :param xmax: maximum bound on each variable
-        :return: Vector representing the feasible point
-        """
-        m, d = A.shape
-        prob = pulp.LpProblem('find_int_point', pulp.LpStatusOptimal)
-        vars = [
-            pulp.LpVariable(
-                f'x{i}',
-                lowBound=int(xmin[i]) if xmin is not None else None,
-                upBound=int(xmax[i]) if xmax is not None else None,
-                cat='Integer'
-            )
-            for i in range(d)
-        ]
-
-        # no objective, just feasibility: add 0 objective
-        prob += 0
-        for i in range(m):
-            prob += pulp.lpSum(A[i, j] * vars[j] for j in range(d)) <= b[i] - 1e-6
-        prob.solve(pulp.PULP_CBC_CMD(msg=False))
-        if pulp.LpStatus[prob.status] != 'Optimal':
-            return None
-        return np.array([int(val) if (val := var.value()) else 0 for var in vars], dtype=int)
 
     @staticmethod
     def find_integer_feasible_point(A: np.ndarray, b: np.ndarray) -> np.ndarray | None:
