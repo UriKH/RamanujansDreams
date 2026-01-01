@@ -82,8 +82,8 @@ class Searchable(ABC):
                 res = db.identify([constant.evalf(300)] + t1_col[1:])
             except Exception as e:
                 # print(f'traj={traj_m}, constant={constant}, {e}')
-                # return None, None, None
-                raise Exception(f'LIReC failed with: {e}')
+                return None, None, None
+                # raise Exception(f'LIReC failed with: {e}')
 
             if not res:
                 return None, None, None

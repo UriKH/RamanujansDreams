@@ -45,7 +45,8 @@ class Shard(Searchable):
         return np.all(self.A @ point < self.b)
 
     def get_interior_point(self) -> Position:
-        return Position({sym: v for v, sym in zip(self.start_coord.values(), self.symbols)})
+        start = self.start_coord
+        return Position({sym: v for v, sym in zip(start.values(), self.symbols)})
 
     def sample_trajectories(self, n_samples, *, strict: Optional[bool] = False) -> Set[Position]:
         """
@@ -440,7 +441,7 @@ class Shard(Searchable):
             # 1. Handle the strict inequality (Ax < b)
             # If data is purely integer, use offset = 1.0
             # If data is float, use a small epsilon, e.g., offset = 1e-6
-            offset = 1.0
+            offset = 1e-6
             b_upper = b - offset
 
             # 2. Define Constraints: -inf <= Ax <= b_upper
@@ -474,7 +475,8 @@ class Shard(Searchable):
         #     return None
         # res = self.find_integer_feasible_point(self.A, self.b)
         # res = self.solve_polyhedron_fast(self.A, self.b_shifted, True)[1]
-        res = find_integer_solution(self.A, self.b_shifted)
+        # res = find_integer_solution(self.A, self.b_shifted)
+        res = self.find_integer_feasible_point(self.A, self.b_shifted - 1e-4)
         if res is None:
             return None
         return Position({sym: v for sym, v in zip(self.symbols, np.int64(res).tolist())}) + Position({sym: sp.Rational(v) for sym, v in zip(self.symbols, self.shift.tolist())})
