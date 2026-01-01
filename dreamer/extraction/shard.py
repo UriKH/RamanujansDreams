@@ -23,7 +23,8 @@ class Shard(Searchable):
                  A: np.ndarray,
                  b: np.array,
                  shift: Position,
-                 symbols: List[sp.Symbol]
+                 symbols: List[sp.Symbol],
+                 start_coord: Optional[Position] = None
                  ):
         """
         :param A: Matrix A defining the linear terms in the inequalities
@@ -37,6 +38,7 @@ class Shard(Searchable):
         self.b = b
         self.symbols = symbols
         self.shift = np.array([shift[sym] for sym in self.symbols])
+        self.start_coord = start_coord
 
     def in_space(self, point: Position) -> bool:
         point = np.array(point.sorted().values())
@@ -393,57 +395,59 @@ class Shard(Searchable):
     #     print(f"--- Finished. Total valid regions: {len(valid)} ---")
     #     return list(valid)
 
-    @cached_property
-    def start_coord(self) -> Position:
-        def find_integer_solution(A, b):
-            """
-            Checks for integer solution to Ax < b.
-            Returns the solution x if found, else None.
-            """
-            m, n = A.shape
-
-            # 1. Handle the strict inequality (Ax < b)
-            # If data is purely integer, use offset = 1.0
-            # If data is float, use a small epsilon, e.g., offset = 1e-6
-            offset = 1e-6
-            b_upper = b - offset
-
-            # 2. Define Constraints: -inf <= Ax <= b_upper
-            # We use -np.inf for the lower bound effectively making it a one-sided inequality
-            constraints = LinearConstraint(A, -np.inf, b_upper)
-
-            # 3. Define Integrality: 1 means integer, 0 means continuous
-            integrality = np.ones(n)
-
-            # 4. Define Bounds on X: default is (0, inf), we want (-inf, inf)
-            # Note: Solvers work faster with tighter bounds, but this works generally.
-            bounds = Bounds(-np.inf, np.inf)
-
-            # 5. Objective: We only care about feasibility, so we minimize 0*x
-            c = np.zeros(n)
-
-            res = milp(c=c, constraints=constraints, integrality=integrality, bounds=bounds)
-
-            if res.success:
-                # Rounding is safe because the solver guarantees integer feasibility within tolerance
-                return np.round(res.x).astype(int)
-            else:
-                return None
-
-        # res = self.__find_integer_point_milp(
-        #     self.A, self.b_shifted,
-        #     xmin=[-analysis_config.VALIDATION_BOUND_BOX_DIM] * self.dim,
-        #     xmax=[analysis_config.VALIDATION_BOUND_BOX_DIM] * self.dim
-        # )
-        # if self.find_feasible_point(self.A, self.b) is None:
-        #     return None
-        # res = self.find_integer_feasible_point(self.A, self.b)
-        # res = self.solve_polyhedron_fast(self.A, self.b_shifted, True)[1]
-        # res = find_integer_solution(self.A, self.b_shifted)
-        res = self.find_integer_feasible_point(self.A, self.b_shifted - 1e-4)
-        if res is None:
-            return None
-        return Position({sym: v for sym, v in zip(self.symbols, np.int64(res).tolist())}) + Position({sym: sp.Rational(v) for sym, v in zip(self.symbols, self.shift.tolist())})
+    # @cached_property
+    # def start_coord(self) -> Position:
+    #     def find_integer_solution(A, b):
+    #         """
+    #         Checks for integer solution to Ax < b.
+    #         Returns the solution x if found, else None.
+    #         """
+    #         m, n = A.shape
+    #
+    #         # 1. Handle the strict inequality (Ax < b)
+    #         # If data is purely integer, use offset = 1.0
+    #         # If data is float, use a small epsilon, e.g., offset = 1e-6
+    #         offset = 1e-6
+    #         b_upper = b - offset
+    #
+    #         # 2. Define Constraints: -inf <= Ax <= b_upper
+    #         # We use -np.inf for the lower bound effectively making it a one-sided inequality
+    #         constraints = LinearConstraint(A, -np.inf, b_upper)
+    #
+    #         # 3. Define Integrality: 1 means integer, 0 means continuous
+    #         integrality = np.ones(n)
+    #
+    #         # 4. Define Bounds on X: default is (0, inf), we want (-inf, inf)
+    #         # Note: Solvers work faster with tighter bounds, but this works generally.
+    #         bounds = Bounds(-np.inf, np.inf)
+    #
+    #         # 5. Objective: We only care about feasibility, so we minimize 0*x
+    #         c = np.zeros(n)
+    #
+    #         res = milp(c=c, constraints=constraints, integrality=integrality, bounds=bounds)
+    #
+    #         if res.success:
+    #             # Rounding is safe because the solver guarantees integer feasibility within tolerance
+    #             return np.round(res.x).astype(int)
+    #         else:
+    #             return None
+    #
+    #     # res = self.__find_integer_point_milp(
+    #     #     self.A, self.b_shifted,
+    #     #     xmin=[-analysis_config.VALIDATION_BOUND_BOX_DIM] * self.dim,
+    #     #     xmax=[analysis_config.VALIDATION_BOUND_BOX_DIM] * self.dim
+    #     # )
+    #     # if self.find_feasible_point(self.A, self.b) is None:
+    #     #     return None
+    #     # res = self.find_integer_feasible_point(self.A, self.b)
+    #     # res = self.solve_polyhedron_fast(self.A, self.b_shifted, True)[1]
+    #     # res = find_integer_solution(self.A, self.b_shifted)
+    #     if self.start_coord is not None:
+    #         return self.start_coord
+    #     res = self.find_integer_feasible_point(self.A, self.b_shifted - 1e-4)
+    #     if res is None:
+    #         return None
+    #     return Position({sym: v for sym, v in zip(self.symbols, np.int64(res).tolist())}) + Position({sym: sp.Rational(v) for sym, v in zip(self.symbols, self.shift.tolist())})
 
     # @cached_property
     # def is_valid(self):

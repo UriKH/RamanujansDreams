@@ -173,11 +173,12 @@ class ShardExtractor(ExtractionScheme):
 
         symbols = list(hps)[0].symbols
         points = [tuple(coord + shift for coord, shift in zip(p, self.shift.values())) for p in list(itertools.product(tuple(list(range(-2, 3))), repeat=len(symbols)))]
-        shard_encodings = set()
+        shard_encodings = dict()
         for p in tqdm(points, desc='Checking shard encodings ...', **sys_config.TQDM_CONFIG):
             enc = []
+            point_dict = {sym: coord for sym, coord in zip(symbols, p)}
             for hp in hps:
-                res = hp.expr.subs({sym: coord for sym, coord in zip(symbols, p)})
+                res = hp.expr.subs(point_dict)
                 if res == 0:
                     break
                 if res > 0:
@@ -186,29 +187,12 @@ class ShardExtractor(ExtractionScheme):
                     res = -1
                 enc.append(res)
             if len(enc) == len(hps):
-                shard_encodings.add(tuple(enc))
-        # with Logger.simple_timer(f'extracting shard encodings'):
-        #     shards_encodings = HyperplaneArrangement(np.vstack(ws), np.array(bs)).find_all_cones()
-        # results = self.pool.map(partial(self._shard_solver, cmf=self.cmf, const=self.const, hps=hps, shift=self.shift), shards_encodings)
-        # for res in results:
-        #     if res is None:
-        #         skipped += 1
-        #     else:
-        #         shards.append(res)
-        
-        for enc in tqdm(shard_encodings, desc='Creating shard objects', **sys_config.TQDM_CONFIG):
+                shard_encodings[tuple(enc)] = Position(point_dict)
+
+        for enc in tqdm(shard_encodings.keys(), desc='Creating shard objects', **sys_config.TQDM_CONFIG):
             A, b, syms = Shard.generate_matrices(list(hps), enc)
-            shards.append(Shard(self.cmf, self.const, A, b, self.shift, syms))
-            # if (shard := Shard(self.cmf, self.const, A, b, self.shift, syms)).is_valid:
-            #     shards.append(shard)
-            # else:
-            #     skipped += 1
-        # Logger(
-        #     f'skipped {skipped} shards',
-        #     level=Logger.Levels.warning
-        # ).log(msg_prefix='\n')
-        # for shard in shards:
-        #     print(f'start point: {shard.start_coord}')
+            shards.append(Shard(self.cmf, self.const, A, b, self.shift, syms, shard_encodings[enc]))
+
         Logger(
             f'Found {len(shard_encodings)} shards',
             level=Logger.Levels.info

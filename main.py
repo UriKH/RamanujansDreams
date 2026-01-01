@@ -36,8 +36,14 @@ if __name__ == '__main__':
     from sympy import symbols, summation, oo
 
     System(
-        if_srcs=[pFq_formatter(log(2), 2, 1, -1, [0, 0, 0])],
+        if_srcs=[
+            pFq_formatter(
+                dreamer.catalan, 3, 2, 1, [
+                    0, 0, sp.Rational(1, 2), sp.Rational(1, 2), sp.Rational(1, 2)
+                ]
+            )
+        ],
         extractor=ShardExtractorMod,
         analyzers=[analysis.AnalyzerModV1],
         searcher=search.SearcherModV1
-    ).run(constants=[log(2)])
+    ).run(constants=[dreamer.catalan])
