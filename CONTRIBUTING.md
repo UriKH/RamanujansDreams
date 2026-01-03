@@ -1,19 +1,31 @@
 ### Add a search module
 
 **What do I need to do?**
-1. Create the new search method templated using as a SearchMethod
-2. Create a search module which is templated using a SearcherModScheme
+1. Create the new search method inherits from SearchMethod
+2. Create a search module which inherits from SearcherModScheme
 
 **How?**
 - In the search method implement the internal logic and how the search works.
 - In the search module implement the external interface - how to use the search method? Where and how to export data? etc.
 
-**NOTE:** If implementation is not local and you want to contribute please put the `MySearchMethod` and `MySearchMod` in different files and place `my_search_method.py` in `dreamer/search_stage/methods/<your method's name>` (with your extra files if any) and `my_search_mod.py` in `dreamer/search_stage/searchers/<your searcher's name>` (with your extra files if any)
+**NOTE:** If implementation is not local and you want to contribute please put the `MySearchMethod` and `MySearchMod` in different files and place `my_search_method.py` in `dreamer/search/methods/<your method's name>` (with your extra files if any) and `my_search_mod.py` in `dreamer/search_stage/searchers/<your searcher's name>` (with your extra files if any)
 
 **Code template:** See `examples/search.py`
 
 ### Add an analysis module
-WIP
+
+**What do I need to do?**
+1. Create the new analyzer inherits from AnalyzerScheme
+2. Create a analysis module which inherits from AnalyzerModScheme
+
+**How?**
+- In the analyzer implement the internal logic and how the analyzer works. 
+- In the analysis module implement the external interface - how to use the analyzer? How to prioritize searchables? etc.
+
+**NOTE:** If implementation is not local and you want to contribute please put the `MyAnalyzer` and `MyAnalysisMod` in different files and place `my_analyzer.py` and `my_analysis_mod.py` in `dreamer/analysis/analyzers/<your analyzer's name>` (with your extra files if any).
+
+**Code template:** See `examples/analysis.py`
+
 
 
 ## Developer Guide (WIP)
