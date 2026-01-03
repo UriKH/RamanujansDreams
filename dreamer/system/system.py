@@ -9,10 +9,10 @@ from dreamer.utils.schemes.db_scheme import DBModScheme
 from dreamer.loading.funcs.formatter import Formatter
 from dreamer.utils.schemes.searcher_scheme import SearcherModScheme
 from dreamer.utils.schemes.extraction_scheme import ExtractionModScheme
-from ..utils.storage import Exporter, Importer, Formats
-from ..utils.types import *
-from ..utils.logger import Logger
-from ..utils.constants.constant import Constant
+from dreamer.utils.storage import Exporter, Importer, Formats
+from dreamer.utils.types import *
+from dreamer.utils.logger import Logger
+from dreamer.utils.constants.constant import Constant
 from dreamer.configs.system import sys_config
 from dreamer.configs.extraction import extraction_config
 from functools import partial

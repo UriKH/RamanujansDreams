@@ -10,7 +10,7 @@ import time
 from numba import njit
 from scipy.special import gamma, zeta
 from dreamer.utils.types import *
-from dreamer.utils.constants.constant import Constant
+from dreamer.utils.constants.constant import (Constant)
 
 from scipy.optimize import linprog
 from scipy.optimize import milp, LinearConstraint, Bounds

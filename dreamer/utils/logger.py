@@ -4,12 +4,15 @@ import inspect
 from enum import Enum, auto
 from contextlib import contextmanager
 from dreamer.configs import logging_config
+from typing import Callable
 
 
 class Logger:
     """
     Logging for terminal interface and debugging
     """
+    print_func: Callable = print
+
     class Levels(Enum):
         message = auto()
         info = auto()
@@ -56,7 +59,7 @@ class Logger:
             return result
         return wrapper
 
-    def log(self, msg_prefix='', in_function: bool = False, print=print):
+    def log(self, msg_prefix='', in_function: bool = False, print_func=print):
         """
         Log a message with it's logging level to the standard output
         :param msg_prefix: the message level prefix for printing
@@ -66,23 +69,23 @@ class Logger:
 
         match self.level:
             case Logger.Levels.message:  # message
-                print(f'{Logger.Colors.white}{msg_prefix}{self.msg}', end=self.end)
+                self.print_func(f'{Logger.Colors.white}{msg_prefix}{self.msg}', end=self.end)
             case Logger.Levels.info:       # info - green
-                print(f'{Logger.Colors.green}{msg_prefix}[INFO] {self.msg}', end=self.end)
+                self.print_func(f'{Logger.Colors.green}{msg_prefix}[INFO] {self.msg}', end=self.end)
             case Logger.Levels.warning:    # warning - yellow
-                print(f'{Logger.Colors.yellow}{msg_prefix}[WARNING] {self.msg}', end=self.end)
+                self.print_func(f'{Logger.Colors.yellow}{msg_prefix}[WARNING] {self.msg}', end=self.end)
             case Logger.Levels.inform:     # does not raise exception - red
                 msg = f'{Logger.Colors.red}{msg_prefix}[NOTICE] {self.msg}'
                 if in_function:
                     msg += f' in {self.calling_function_name}'
-                print(msg, end=self.end)
+                self.print_func(msg, end=self.end)
             case Logger.Levels.exception:  # exception - red
                 msg = f'{Logger.Colors.red}{msg_prefix}[ERROR] {self.msg}'
                 if in_function:
                     msg += f' in {self.calling_function_name}'
-                print(msg, end=self.end)
+                self.print_func(msg, end=self.end)
             case Logger.Levels.fatal:      # fatal error - red
-                print(f'{Logger.Colors.red}{msg_prefix}[ERROR] {self.msg} in {self.calling_function_name} \n\t'
+                self.print_func(f'{Logger.Colors.red}{msg_prefix}[ERROR] {self.msg} in {self.calling_function_name} \n\t'
                       f'-> exiting', end=self.end)
                 try:
                     __IPYTHON__

@@ -6,8 +6,8 @@ from functools import lru_cache
 from scipy.optimize import linprog
 import numpy as np
 
-from dreamer.utils.geometry.plane import Plane
-from dreamer.utils.types import *
+from dreamer.utils import Plane
+from dreamer.utils import *
 from dreamer.configs.analysis import *
 
 x0, x1, y0 = sp.symbols('x0 x1 y0')

@@ -1,5 +1,4 @@
 from dreamer.utils.schemes.searchable import Searchable
-from dreamer.utils.storage.storage_objects import DataManager
 from dreamer.utils.schemes.module import Module
 from dreamer.utils.types import *
 from dreamer.utils.constants.constant import Constant
@@ -27,6 +26,6 @@ class ExtractionScheme(ABC):
         self.shift: Position = shift
 
     @abstractmethod
-    def extract_searchables(self) -> List[Searchable]:
+    def extract_searchables(self, *args) -> List[Searchable]:
         raise NotImplementedError
     

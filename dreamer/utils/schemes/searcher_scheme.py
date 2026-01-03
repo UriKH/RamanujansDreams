@@ -1,14 +1,11 @@
 from abc import ABC, abstractmethod
 from copy import copy
 import mpmath as mp
-import random
 
 from dreamer.utils.schemes.searchable import Searchable
-from dreamer.utils.storage.storage_objects import DataManager
+from dreamer.utils.storage.storage_objects import DataManager, SearchData
 from dreamer.utils.types import *
 from dreamer.utils.schemes.module import Module
-from dreamer.utils.storage.storage_objects import SearchData
-import pandas as pd
 
 
 class SearchMethod(ABC):

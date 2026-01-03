@@ -12,6 +12,9 @@ Common usage example with detailed instructions in [colab](https://colab.researc
 - Changing configurations could be done in two ways:
   1. Using `config.configure(<config_section> = {<configuration-name> : <new value>})` - that way new configurations could be added to newly developed modules.
   2. Using each section's private configuration e.g. `db_config.USAGE = DBUsage.RETRIEVE_DATA`.
+  3. If you are a PyCharm user, your terminal might be a bit off due to `tqdm` defualt configurations.  
+   To make sure the terminal looks right set: `Run > Edit Configurations > Emulate terminal in output console`  
+  
 
 ### Loading using a DB
 1. You can add to the DB manually (i.e. by using its interface) or by loading via a json file

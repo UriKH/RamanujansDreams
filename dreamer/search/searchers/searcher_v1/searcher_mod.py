@@ -1,15 +1,15 @@
 from dreamer.utils.schemes.searchable import Searchable
-from dreamer.utils.storage import Exporter, Formats
+from dreamer.utils.storage.exporter import Exporter, Formats
 from dreamer.utils.storage.storage_objects import DataManager
 from dreamer.utils.schemes.searcher_scheme import SearcherModScheme
+from dreamer.utils.schemes.module import CatchErrorInModule
+from dreamer.utils.types import *
+from dreamer.utils.ui.tqdm_config import SmartTQDM
 from ...methods.serial.serial_searcher import SerialSearcher
 from . import config as search_config_local
 from dreamer.configs.search import search_config
-from dreamer.utils.types import *
-from dreamer.utils.schemes.module import CatchErrorInModule
 from dreamer.configs.system import sys_config
 
-from tqdm import tqdm
 import os
 
 
@@ -39,7 +39,7 @@ class SearcherModV1(SearcherModScheme):
         dms: Dict[Searchable, DataManager] = dict()
 
         with Exporter.export_stream(dir_path, exists_ok=True, clean_exists=True, fmt=Formats.PICKLE) as write_chunk:
-            for space in tqdm(self.searchables, desc='Searching the searchable spaces: ', **sys_config.TQDM_CONFIG):
+            for space in SmartTQDM(self.searchables, desc='Searching the searchable spaces: ', **sys_config.TQDM_CONFIG):
                 searcher = SerialSearcher(space, space.const, use_LIReC=self.use_LIReC)
                 res = searcher.search(
                     None,

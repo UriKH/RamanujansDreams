@@ -1,18 +1,16 @@
 from dreamer.utils.schemes.analysis_scheme import AnalyzerScheme
 from dreamer.utils.schemes.searchable import Searchable
-from dreamer.extraction.extractor import ShardExtractor
 from dreamer.utils.storage.storage_objects import DataManager
 from dreamer.search.methods.serial.serial_searcher import SerialSearcher
-from dreamer.utils.types import *
 from dreamer.utils.logger import Logger
 from dreamer.configs import (
     sys_config,
     analysis_config
 )
 
-import mpmath as mp
-from tqdm import tqdm
+from dreamer.utils.ui.tqdm_config import SmartTQDM
 from dreamer.utils.constants.constant import Constant
+from dreamer.utils.types import *
 
 
 class Analyzer(AnalyzerScheme):
@@ -24,14 +22,14 @@ class Analyzer(AnalyzerScheme):
     def search(self) -> Dict[Searchable, DataManager]:
         managers = {}
 
-        for i, shard in enumerate((prog_bar := tqdm(self.shards, desc=f'Analyzing shards', **sys_config.TQDM_CONFIG))):
+        for i, shard in enumerate((prog_bar := SmartTQDM(self.shards, desc=f'Analyzing shards', **sys_config.TQDM_CONFIG))):
             # with Logger.simple_timer(f'get start point for shard'):
             start = shard.get_interior_point()
-            Logger(f'{">" * 10} SHARD NO. {i + 1} {"<" * 10}').log(msg_prefix='\n', print=prog_bar.write)
+            Logger(f'{">" * 10} SHARD NO. {i + 1} {"<" * 10}').log(msg_prefix='\n', print_func=prog_bar.write)
             if analysis_config.SHOW_START_POINT:
-                Logger(f'Chosen shard start point: {start}', Logger.Levels.info).log(print=prog_bar.write)
+                Logger(f'Chosen shard start point: {start}', Logger.Levels.info).log(print_func=prog_bar.write)
             if analysis_config.SHOW_SEARCHABLE:
-                Logger(f'Shard: \n{shard}', Logger.Levels.info).log(print=prog_bar.write)
+                Logger(f'Shard: \n{shard}', Logger.Levels.info).log(print_func=prog_bar.write)
 
             # with Logger.simple_timer(f'preform search'):
             searcher = SerialSearcher(shard, self.const, use_LIReC=analysis_config.USE_LIReC)
@@ -53,14 +51,14 @@ class Analyzer(AnalyzerScheme):
                         f'Identified {identified * 100:.2f}% of trajectories as containing "{self.const.name}"'
                         f'best delta: {best_delta}\n\t [ at trajectory: {best_trajectory} ]',
                         Logger.Levels.info
-                    ).log(print=prog_bar.write)
+                    ).log(print_func=prog_bar.write)
                 else:
                     Logger(
                         f'Identified {identified * 100:.2f}% of trajectories as containing "{self.const.name}"'
                         f'best delta: {best_delta:.4f}\n\t[ at trajectory: {best_trajectory} ]'
                         f'\n\tp,q vectors: {dm[best_trajectory].initial_values.tolist()}',
                         Logger.Levels.info
-                    ).log(print=prog_bar.write)
+                    ).log(print_func=prog_bar.write)
             if identified > analysis_config.IDENTIFY_THRESHOLD and best_delta is not None:
                 managers[shard] = dm
             else:
@@ -69,9 +67,9 @@ class Analyzer(AnalyzerScheme):
                         f'Ignoring shard - identified <= {analysis_config.IDENTIFY_THRESHOLD * 100}% '
                         f'of tested trajectories',
                         Logger.Levels.info
-                    ).log(print=prog_bar.write)
+                    ).log(print_func=prog_bar.write)
                 else:
-                    Logger(f'No best delta was found', Logger.Levels.warning).log(print=prog_bar.write)
+                    Logger(f'No best delta was found', Logger.Levels.warning).log(print_func=prog_bar.write)
         return managers
 
     def prioritize(self, managers: Dict[Searchable, DataManager], ranks=3) -> Dict[Searchable, Dict[str, int]]:

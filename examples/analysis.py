@@ -6,7 +6,7 @@ from dreamer.utils.storage.storage_objects import DataManager
 from dreamer.utils.types import *
 from dreamer.utils.logger import Logger
 from dreamer.configs import sys_config
-from tqdm import tqdm
+from dreamer.utils.ui.tqdm_config import SmartTQDM
 
 
 class MyAnalyzer(AnalyzerScheme):
@@ -68,7 +68,7 @@ class MyAnalyzerMod(AnalyzerModScheme):
         """
 
         queues = {c: [] for c in self.cmf_data.keys()}
-        for constant, shards in tqdm(
+        for constant, shards in SmartTQDM(
                 self.cmf_data.items(), desc='Analyzing constants and their CMFs', **sys_config.TQDM_CONFIG
         ):
             # These sleeps are just to make the output look nicer (these could be ignored using the configurations)

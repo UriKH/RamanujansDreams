@@ -2,7 +2,7 @@ import os.path
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from typing import DefaultDict
-from tqdm import tqdm
+from dreamer.utils.ui.tqdm_config import SmartTQDM
 from dreamer.utils.constants.constant import Constant
 from dreamer.utils.schemes.module import Module, CatchErrorInModule
 from dreamer.utils.types import *
@@ -28,7 +28,7 @@ class DBModScheme(Module):
         :return: A dictionary mapping each constant to a list of CMFs and their respective shifts
         """
         results = defaultdict(set)
-        for db in tqdm(dbs, desc=f'Extracting data from DBs', **sys_config.TQDM_CONFIG):
+        for db in SmartTQDM(dbs, desc=f'Extracting data from DBs', **sys_config.TQDM_CONFIG):
             if not issubclass(db.__class__, cls):
                 raise ValueError(f"Invalid DBModConnector instance: {db}")
             for const, l in db.execute(constants).items():

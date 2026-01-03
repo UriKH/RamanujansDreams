@@ -6,16 +6,16 @@ from dreamer.utils.types import *
 
 
 class pFq_formatter(Formatter):
-    """
-    Represents a pFq and its CMF + allows conversion to and from JSON.
-    :var const: The constant related to this pFq function
-    :var p: The p value of the pFq.
-    :var q: The q value of the pFq.
-    :var z: The z value of the pFq.
-    :var shifts: The shifts in starting point in the CMF where a sp.Rational indicates a shift.
-    While 0 indicates no shift (None if not doesn't matter).
-    """
     def __init__(self, const: str | Constant, p: int, q: int, z: sp.Expr | int, shifts: Position | list):
+        """
+        Represents a pFq and its CMF + allows conversion to and from JSON.
+        :var const: The constant related to this pFq function
+        :var p: The p value of the pFq.
+        :var q: The q value of the pFq.
+        :var z: The z value of the pFq.
+        :var shifts: The shifts in starting point in the CMF where a sp.Rational indicates a shift.
+        While 0 indicates no shift (None if not doesn't matter).
+        """
         super().__init__(const)
         self.p = p
         self.q = q

@@ -39,16 +39,6 @@ class Hyperplane:
             self.linear_term = -self.linear_term
             self.free_term = -self.free_term
 
-    # def is_in_integer_shift(self) -> bool:
-    #     """
-    #     Checks if the hyperplane passes in shift points.
-    #     :return: True if passes in shift points. False otherwise.
-    #     """
-    #     coeffs = list(self.sym_coef_map.values())
-    #     if (gcd := sp.gcd(coeffs) if coeffs else 0) == 0:
-    #         return self.free_term == 0
-    #     return sp.Abs(self.free_term) % gcd == 0
-
     def is_in_integer_shift(self) -> bool:
         """
         Checks if the hyperplane passes in shift points (Integer Solutions check).

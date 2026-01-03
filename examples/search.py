@@ -1,13 +1,12 @@
 from dreamer.utils.schemes.searcher_scheme import SearchMethod, SearcherModScheme
 from dreamer.utils.storage.storage_objects import DataManager
 from dreamer.utils.schemes.searchable import Searchable
-from dreamer.utils.types import *   # for using all the typechecking stuff
 from dreamer.utils.schemes.module import CatchErrorInModule
 from dreamer.utils.constants.constant import Constant
+from dreamer.utils.storage import Exporter, Formats
+from dreamer.utils.ui.tqdm_config import SmartTQDM
 from dreamer.configs.system import sys_config
 import os
-from tqdm import tqdm
-from dreamer.utils.storage.exporter import Exporter, Formats
 
 
 class MySearchMethod(SearchMethod):
@@ -58,7 +57,7 @@ class MySearchMod(SearcherModScheme):
         # When you are searching per searchable (e.g. Shard) the results are stored in automatically in a pickle file
         # in `dir_path`
         with Exporter.export_stream(dir_path, exists_ok=True, clean_exists=True, fmt=Formats.PICKLE) as write_chunk:
-            for space in tqdm(self.searchables, desc='Searching the searchable spaces: ', **sys_config.TQDM_CONFIG):
+            for space in SmartTQDM(self.searchables, desc='Searching the searchable spaces: ', **sys_config.TQDM_CONFIG):
                 searcher = MySearchMethod(
                     space, Constant.get_constant(space.const_name)    # TODO: add your arguments
                 )   # creates an instance of your searcher

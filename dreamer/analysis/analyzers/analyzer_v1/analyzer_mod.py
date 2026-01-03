@@ -1,13 +1,13 @@
 from dreamer.utils.schemes.analysis_scheme import AnalyzerModScheme
-from .analyzer import Analyzer
+from dreamer.utils.ui.tqdm_config import SmartTQDM
 from dreamer.utils.schemes.searchable import Searchable
 from dreamer.utils.logger import Logger
 from dreamer.utils.types import *
 from dreamer.utils.schemes.module import CatchErrorInModule
 from dreamer.utils.constants.constant import Constant
 from dreamer.configs import sys_config
+from .analyzer import Analyzer
 from .config import *
-from tqdm import tqdm
 
 
 class AnalyzerModV1(AnalyzerModScheme):
@@ -39,23 +39,23 @@ class AnalyzerModV1(AnalyzerModScheme):
             return merged
 
         queues = {c: [] for c in self.cmf_data.keys()}
-        for constant, shards in (prog_bar := tqdm(self.cmf_data.items(), desc='Analyzing constants and their CMFs',
+        for constant, shards in (prog_bar := SmartTQDM(self.cmf_data.items(), desc='Analyzing constants and their CMFs',
                                                   **sys_config.TQDM_CONFIG)):
             queue: List[Dict[Searchable, Dict[str, int]]] = []
             Logger(
                 Logger.buffer_print(sys_config.LOGGING_BUFFER_SIZE, f'Analyzing for {constant.name}', '=')
-            ).log(msg_prefix='\n', print=prog_bar.write)
+            ).log(msg_prefix='\n', print_func=prog_bar.write)
             # for s in shards:
             cmf = shards[0].cmf
             if issubclass(cmf.__class__, CMF):
                 Logger(
                     Logger.buffer_print(sys_config.LOGGING_BUFFER_SIZE,
                                         f'Current CMF is manual with dim={cmf.dim()} and shift {shards[0].shift}', '=')
-                ).log(msg_prefix='\n', print=prog_bar.write)
+                ).log(msg_prefix='\n', print_func=prog_bar.write)
             else:
                 Logger(
                     Logger.buffer_print(sys_config.LOGGING_BUFFER_SIZE, f'Current CMF: {cmf} with shift {shards[0].shift}', '=')
-                ).log(msg_prefix='\n', print=prog_bar.write)
+                ).log(msg_prefix='\n', print_func=prog_bar.write)
                 # TODO: add option to use mpf - depends on the use_LIReC I guess. maybe there is a way to use only sympy format
             Logger.sleep(1)
             analyzer = Analyzer(constant, shards[0].cmf, shards)

@@ -4,7 +4,7 @@ from .analysis import analysis_config
 from .search import search_config
 from .extraction import extraction_config
 from .logging import logging_config
-from ..utils.logger import Logger
+from dreamer.utils.logger import Logger
 from typing import Dict, List
 
 

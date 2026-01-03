@@ -1,31 +1,28 @@
 """
 Extractor is responsible for shard creation
 """
-import itertools
-import os.path
-from collections import defaultdict
-
-from dreamer.utils.schemes.extraction_scheme import ExtractionScheme, ExtractionModScheme
-from dreamer.utils.types import *
-
-from dreamer.configs import sys_config, extraction_config
-
-from dreamer.configs import analysis_config
+from dreamer.configs import (
+    sys_config,
+    extraction_config
+)
 from concurrent.futures import ProcessPoolExecutor
 from dreamer.extraction.hyperplanes import Hyperplane
 from dreamer.extraction.shard import Shard
+from dreamer.utils.schemes.extraction_scheme import ExtractionScheme, ExtractionModScheme
 from dreamer.utils.logger import Logger
 from dreamer.utils.constants.constant import Constant
 from dreamer.utils.schemes.searchable import Searchable
 from dreamer.utils.storage.exporter import Exporter
 from dreamer.utils.storage.formats import Formats
 from ramanujantools.cmf.d_finite import theta
+from dreamer.utils.types import *
+from dreamer.utils.ui.tqdm_config import SmartTQDM
 
-
-from tqdm import tqdm
+import itertools
+import os.path
 import numpy as np
 from scipy.optimize import linprog
-from collections import deque
+from collections import deque, defaultdict
 
 
 class ShardExtractorMod(ExtractionModScheme):
@@ -34,36 +31,35 @@ class ShardExtractorMod(ExtractionModScheme):
             cmf_data,
             name=self.__class__.__name__,
             desc='Shard extractor module',
-            version='v0.0.1'
+            version='0.0.1'
         )
 
     def execute(self) -> Dict[Constant, List[Searchable]]:
         all_shards = defaultdict(list)
 
         consts_itr = iter(list(self.cmf_data.keys()))
-        Logger.sleep(0.5)
-        for const, cmf_list in tqdm(self.cmf_data.items(), desc=f'Extracting shards for "{next(consts_itr).name}"',
-                                    **sys_config.TQDM_CONFIG):
+        for const, cmf_list in SmartTQDM(
+                self.cmf_data.items(), desc=f'Extracting shards for "{next(consts_itr).name}"',
+                **sys_config.TQDM_CONFIG
+        ):
             with Exporter.export_stream(
                     os.path.join(extraction_config.PATH_TO_SEARCHABLES, const.name),
                     exists_ok=True, clean_exists=True, fmt=Formats.PICKLE
             ) as export_stream:
-                ind_itr = iter(range(len(cmf_list)))
-                Logger.sleep(0.5)
-                for cmf_shift in tqdm(cmf_list, desc=f'Computing shards for CMF no. {next(ind_itr) + 1}',
-                                      **sys_config.TQDM_CONFIG):
+                for i, cmf_shift in enumerate(SmartTQDM(
+                        cmf_list, desc=f'Computing shards',
+                        **sys_config.TQDM_CONFIG)):
                     extractor = ShardExtractor(const, cmf_shift.cmf, cmf_shift.shift)
-                    shards = extractor.extract_searchables()
+                    shards = extractor.extract_searchables(i + 1)
                     all_shards[const] += shards
                     export_stream(shards)
-                Logger.sleep(0.5)
         return all_shards
 
 
 class ShardExtractor(ExtractionScheme):
     def __init__(self, const: Constant, cmf: CMF, shift: Position):
         super().__init__(const, cmf, shift)
-        self.pool = ProcessPoolExecutor() if analysis_config.PARALLEL_SHARD_VALIDATION else None
+        self.pool = ProcessPoolExecutor() if extraction_config.PARALLELIZE else None
 
     @property
     def symbols(self) -> List[sp.Symbol]:
@@ -126,7 +122,7 @@ class ShardExtractor(ExtractionScheme):
 
         return filtered_hps
 
-    def extract_searchables(self) -> List[Shard]:
+    def extract_searchables(self, call_number=None) -> List[Shard]:
         """
         Extracts the shards from the CMF
         :return: The set of shards matching the CMF
@@ -142,14 +138,17 @@ class ShardExtractor(ExtractionScheme):
             bs.append(b)
 
         Logger(
-            f'Found {len(hps)} hyperplanes',
+            f'Found {len(hps)} hyperplanes for CMF no. {call_number}',
             level=Logger.Levels.info
         ).log(msg_prefix='\n')
 
         symbols = list(hps)[0].symbols
-        points = [tuple(coord + shift for coord, shift in zip(p, self.shift.values())) for p in list(itertools.product(tuple(list(range(-2, 3))), repeat=len(symbols)))]
+        points = [
+            tuple(coord + shift for coord, shift in zip(p, self.shift.values()))
+            for p in list(itertools.product(tuple(list(range(-2, 3))), repeat=len(symbols)))
+        ]
         shard_encodings = dict()
-        for p in tqdm(points, desc='Checking shard encodings ...', **sys_config.TQDM_CONFIG):
+        for p in SmartTQDM(points, desc='Checking shard encodings ...', **sys_config.TQDM_CONFIG):
             enc = []
             point_dict = {sym: coord for sym, coord in zip(symbols, p)}
             for hp in hps:
@@ -164,12 +163,12 @@ class ShardExtractor(ExtractionScheme):
             if len(enc) == len(hps):
                 shard_encodings[tuple(enc)] = Position(point_dict)
 
-        for enc in tqdm(shard_encodings.keys(), desc='Creating shard objects', **sys_config.TQDM_CONFIG):
+        for enc in SmartTQDM(shard_encodings.keys(), desc='Creating shard objects', **sys_config.TQDM_CONFIG):
             A, b, syms = Shard.generate_matrices(list(hps), enc)
             shards.append(Shard(self.cmf, self.const, A, b, self.shift, syms, shard_encodings[enc]))
 
         Logger(
-            f'Found {len(shard_encodings)} shards',
+            f'Found {len(shard_encodings)} shards in CMF no. {call_number}',
             level=Logger.Levels.info
         ).log(msg_prefix='\n')
         return shards

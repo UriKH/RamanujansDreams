@@ -1,13 +1,14 @@
 from abc import ABC, abstractmethod
-import json
-
 from dreamer.loading.config import *
-from ...utils.constants.constant import Constant
-
-from ...utils.types import *
+from dreamer.utils.constants.constant import Constant
+from dreamer.utils.types import *
 
 
 class Formatter(ABC):
+    """
+    This class defines the bridge between a CMF in Ramanujan Tools and a JSON representation of it.
+    This class is a registry of all formatters
+    """
     registry: Dict[str, Type['Formatter']] = dict()
 
     def __init__(self, const: str | Constant):
