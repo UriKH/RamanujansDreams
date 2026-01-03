@@ -1,5 +1,4 @@
-from dataclasses import dataclass, fields
-
+from dataclasses import dataclass
 from .configurable import Configurable
 
 

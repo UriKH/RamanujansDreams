@@ -3,11 +3,7 @@ Extractor is responsible for shard creation
 """
 import itertools
 import os.path
-import time
 from collections import defaultdict
-import sympy as sp
-from functools import partial
-import random
 
 from dreamer.utils.schemes.extraction_scheme import ExtractionScheme, ExtractionModScheme
 from dreamer.utils.types import *
@@ -128,18 +124,7 @@ class ShardExtractor(ExtractionScheme):
                     poles.add(Hyperplane(lhs - rhs, symbols))
             filtered_hps.update(poles)
 
-        # for mat in tqdm(self.cmf.matrices.values()):
-        #     filtered = self.extract_matrix_hps(mat, self.shift, self.symbols)
-        #     filtered_hps.update(set(filtered))
-        # Logger(f'number of found hyperplanes: {len(filtered_hps)}')
         return filtered_hps
-
-    # @staticmethod
-    # def _shard_solver(enc, cmf, const, hps, shift):
-    #     A, b, syms = Shard.generate_matrices(list(hps), enc)
-    #     if (shard := Shard(cmf, const, A, b, shift, syms)).is_valid:
-    #         return shard
-    #     return None
 
     def extract_searchables(self) -> List[Shard]:
         """
@@ -149,14 +134,6 @@ class ShardExtractor(ExtractionScheme):
         hps = self.extract_cmf_hps()
         shards = []
 
-        # shards_encodings = itertools.product((-1, 1), repeat=len(hps))
-        # A, b, syms = Shard.generate_matrices(list(hps), next(shards_encodings))
-        # shards_encodings = Shard.find_regions_in_box(A, b)
-        # converted = []
-        # for enc in shards_encodings:
-        #     converted.append(tuple(1 if e else -1 for e in enc))
-        # shards_encodings = converted
-        # skipped = 0
         ws = []
         bs = []
         for hp in hps:
@@ -164,8 +141,6 @@ class ShardExtractor(ExtractionScheme):
             ws.append(w)
             bs.append(b)
 
-        # for hp in hps:
-        #     print(hp)
         Logger(
             f'Found {len(hps)} hyperplanes',
             level=Logger.Levels.info

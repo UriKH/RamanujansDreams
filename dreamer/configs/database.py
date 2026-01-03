@@ -3,7 +3,6 @@ Global config file for system flow regarding databases
 """
 from dataclasses import dataclass
 from enum import Enum, auto
-
 from .configurable import Configurable
 
 

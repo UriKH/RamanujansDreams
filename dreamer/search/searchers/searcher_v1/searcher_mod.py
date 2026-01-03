@@ -28,14 +28,13 @@ class SearcherModV1(SearcherModScheme):
 
     @CatchErrorInModule(with_trace=sys_config.MODULE_ERROR_SHOW_TRACE, fatal=True)
     def execute(self) -> Dict[Searchable, DataManager]:
-        # create folder
-        if self.searchables:
-            os.makedirs(
-                dir_path := os.path.join(sys_config.EXPORT_SEARCH_RESULTS, self.searchables[0].const.name),
-                exist_ok=True
-            )
-        else:
-            dir_path = sys_config.EXPORT_SEARCH_RESULTS
+        if not self.searchables:
+            return dict()
+
+        os.makedirs(
+            dir_path := os.path.join(sys_config.EXPORT_SEARCH_RESULTS, self.searchables[0].const.name),
+            exist_ok=True
+        )
 
         dms: Dict[Searchable, DataManager] = dict()
 

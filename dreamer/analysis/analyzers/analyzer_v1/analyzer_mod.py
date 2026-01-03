@@ -1,6 +1,3 @@
-import os
-import time
-
 from dreamer.utils.schemes.analysis_scheme import AnalyzerModScheme
 from .analyzer import Analyzer
 from dreamer.utils.schemes.searchable import Searchable
@@ -24,36 +21,6 @@ class AnalyzerModV1(AnalyzerModScheme):
             desc='Module for CMF analysis and shard search filtering and prioritization',
             version='1'
         )
-
-    # def _create_analyzers(self) -> List[Analyzer]:
-    #     def merge_dicts(dict_list: List[Dict]) -> Dict:
-    #         merged = {}
-    #         for d in dict_list:
-    #             merged.update(d)
-    #         return merged
-    #
-    #     queues = {c: [] for c in self.cmf_data.keys()}
-    #     for constant, cmf_tups in tqdm(self.cmf_data.items(), desc='Analyzing constants and their CMFs',
-    #                                    **sys_config.TQDM_CONFIG):
-    #         queue: List[Dict[Searchable, Dict[str, int]]] = []
-    #
-    #         Logger(
-    #             Logger.buffer_print(sys_config.LOGGING_BUFFER_SIZE, f'Analyzing for {constant.name}', '=')
-    #         ).log(msg_prefix='\n')
-    #         for t in cmf_tups:
-    #             if t.raw:
-    #                 Logger(
-    #                     Logger.buffer_print(sys_config.LOGGING_BUFFER_SIZE,
-    #                                         f'Current CMF is manual with dim={t.cmf.dim()} and shift {t.shift}', '=')
-    #                 ).log(msg_prefix='\n')
-    #             else:
-    #                 Logger(
-    #                     Logger.buffer_print(sys_config.LOGGING_BUFFER_SIZE, f'Current CMF: {t.cmf} with shift {t.shift}', '=')
-    #                 ).log(msg_prefix='\n')
-    #             analyzer = Analyzer(constant, t.cmf, t.shift, constant)
-    #
-    # def get_searchables(self) -> Dict[Constant, List[Searchable]]:
-    #     pass
 
     @CatchErrorInModule(with_trace=sys_config.MODULE_ERROR_SHOW_TRACE, fatal=True)
     def execute(self) -> Dict[Constant, List[Searchable]]:

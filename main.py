@@ -11,8 +11,6 @@ from dreamer import pi, zeta, log
 mp.dps = 300
 
 if __name__ == '__main__':
-    trajectory_compute_func = (lambda d: max(100, 10))
-
     config.configure(
         system={
             'EXPORT_CMFS': './mycmfs',                          # export CMF as objects to directory: ./mycmfs
@@ -22,18 +20,15 @@ if __name__ == '__main__':
         analysis={
             'IDENTIFY_THRESHOLD': 0,            # ignore shards with less than 20% identified trajectories as converge
                                                 # to the constant
-            'NUM_TRAJECTORIES_FROM_DIM': trajectory_compute_func
+            'NUM_TRAJECTORIES_FROM_DIM': lambda d: 10 ** (d - 2)
             # number of trajectories to be auto generated in analysis
         },
         search={
             'PARALLEL_SEARCH': True,
-            'NUM_TRAJECTORIES_FROM_DIM': trajectory_compute_func
+            'NUM_TRAJECTORIES_FROM_DIM': lambda d: 10 ** (d - 1)
             # number of trajectories to be auto generated in search if needed by the module
         }
     )
-    from dreamer import Constant
-
-    from sympy import symbols, summation, oo
 
     System(
         if_srcs=[

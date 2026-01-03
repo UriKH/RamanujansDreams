@@ -1,7 +1,6 @@
 from collections import defaultdict
 import networkx as nx
 from itertools import combinations
-from enum import Enum, auto
 import os
 
 from dreamer.utils.schemes.searchable import Searchable
@@ -21,23 +20,19 @@ from functools import partial
 
 class System:
     """
-    A class representing the System itself.
+    System class wraps together all given modules and connects them.
     """
-
-    class RunModes(Enum):
-        DB_ONLY = auto()
-        JSON_TO_DB = auto()
-        JSON_ONLY = auto()
-        MANUAL = auto()
 
     def __init__(self,
                  if_srcs: List[DBModScheme | str | Formatter],
                  extractor: Optional[Type[ExtractionModScheme]],
-                 analyzers: List[Type[AnalyzerModScheme] | str | Searchable],
+                 analyzers: List[Type[AnalyzerModScheme] | partial[AnalyzerModScheme] | str | Searchable],
                  searcher: Type[SearcherModScheme] | partial[SearcherModScheme]):
         """
         Constructing a system runnable instance for a given combination of modules.
         :param if_srcs: A list of DBModScheme instances used as sources
+        :param extractor: An optional ExtractionModScheme type used to extract shards from the CMFs.
+        If extractor not provided, analysis will try to read from the default searchables directory.
         :param analyzers: A list of AnalyzerModScheme types used for prioritization + preparation before the search
         :param searcher: A SearcherModScheme type used to deepen the search done by the analyzers
         """
@@ -50,31 +45,34 @@ class System:
         """
         Run the system given the constants to search for.
         :param constants: if None, search for constants defined in the configuration file in 'configs.database.py'.
-        :return:
         """
         if not constants:
+            Logger(
+                'No constants provided, searching for all constants in configurations', Logger.Levels.warning
+            ).log()
             constants = sys_config.CONSTANTS
 
+        # prepare constants for loading
         if isinstance(constants, str | Constant):
             constants = [constants]
-
         as_obj = []
         for c in constants:
             if isinstance(c, str):
                 if not Constant.is_registered(c):
                     raise ValueError(f'Constant "{c}" is not a registered constant.')
-                else:
-                    as_obj.append(Constant.get_constant(c))
+                as_obj.append(Constant.get_constant(c))
             else:
                 as_obj.append(c)
-
         constants = as_obj
+
+        # ======================================================
+        # LOAD STAGE - loading constants (and optional storage)
+        # ======================================================
         cmf_data = self.__loading_stage(constants)
         if path := sys_config.EXPORT_CMFS:
             os.makedirs(path, exist_ok=True)
 
             for const, l in cmf_data.items():
-                # Sanitize filename (optional, avoids invalid characters)
                 safe_key = "".join(c for c in const.name if c.isalnum() or c in ('-', '_'))
                 const_path = os.path.join(path, safe_key)
 
@@ -85,6 +83,7 @@ class System:
                     f'CMFs for {const.name} exported to {const_path}', Logger.Levels.info
                 ).log(msg_prefix='\n')
 
+        # print constants and CMFs
         for constant, funcs in cmf_data.items():
             functions = '\n'
             for i, func in enumerate(funcs):
@@ -96,14 +95,19 @@ class System:
                 f'Searching for {constant.name} using inspiration functions: {functions}', Logger.Levels.info
             ).log(msg_prefix='\n')
 
-        # Extractor computes shards and saves the results in files in a format.
-        # If extractor not provided, analysis will try to read from the default searchables directory
+        # ====================================================
+        # EXTRACTION STAGE - computing shards and saving them
+        # ====================================================
         shard_dict = None
         if self.extractor:
             shard_dict = self.extractor(cmf_data).execute()
 
-        # analysis stage executes the analyzers. These will read the files
+        # =======================================================
+        # ANALYSIS STAGE - analyzes shards and prioritize search
+        # =======================================================
         priorities = self.__analysis_stage(shard_dict)
+
+        # Store priorities to be used in the search stage and future runs
         filtered_priorities = dict()
         if path := sys_config.EXPORT_ANALYSIS_PRIORITIES:
             os.makedirs(path, exist_ok=True)
@@ -116,7 +120,6 @@ class System:
                     ).log(msg_prefix='\n')
                     continue
 
-                # Sanitize filename (optional, avoids invalid characters)
                 safe_key = "".join(c for c in const.name if c.isalnum() or c in ('-', '_'))
                 const_path = os.path.join(path, safe_key)
 
@@ -126,9 +129,17 @@ class System:
                 ).log(msg_prefix='\n')
                 filtered_priorities[const] = l
 
+        # =======================================================
+        # SEARCH STAGE - preform deep search
+        # =======================================================
         self.__search_stage(filtered_priorities)
 
     def __loading_stage(self, constants: List[Constant]) -> Dict[Constant, List[ShiftCMF]]:
+        """
+        Preforms the loading of the inspiration functions from various sources
+        :param constants: A list of all constants relevant to this run
+        :return: A mapping from a constant to the list of its CMFs (matching the inspiration functions)
+        """
         Logger('Loading CMFs ...', Logger.Levels.info).log(msg_prefix='\n')
         modules = []
         cmf_data = defaultdict(set)
@@ -142,12 +153,12 @@ class System:
             elif isinstance(db, Formatter):
                 cmf_data[Constant.get_constant(db.const)].add(db.to_cmf())
             else:
-                raise ValueError(f'string is not a json file: {db}')
+                raise ValueError(f'Not a known format: {db} (accepts only str | DBModScheme | Formatter)')
 
+        # If DB were used, aggregate extracted constants
         cmf_data_2 = dict()
         if modules:
             cmf_data_2 = DBModScheme.aggregate(modules, constants, True)
-
         for const in cmf_data_2.keys():
             cmf_data[const].update(cmf_data_2[const])
 
@@ -156,22 +167,25 @@ class System:
         for k, v in cmf_data.items():
             if k not in constants:
                 Logger(
-                    f'constant {k} is not in search list, its inspiration functions will be ignored',\
+                    f'constant {k} is not in the search list, its inspiration function(s) will be ignored',
                     level=Logger.Levels.warning
                 ).log(msg_prefix='\n')
                 continue
             as_list[k] = list(v)
         return as_list
 
-    def __analysis_stage(self, cmf_data: Optional[Dict[Constant, List[Searchable]]] = None) -> Dict[Constant, List[Searchable]]:
+    def __analysis_stage(
+            self, cmf_data: Optional[Dict[Constant, List[Searchable]]] = None
+    ) -> Dict[Constant, List[Searchable]]:
         """
         Preform the analysis stage work
-        :param cmf_data: data produced in the DB stage
-        :return: The results of the analysis
+        :param cmf_data: data produced in the loading stage
+        :return: The results of the analysis as a mapping from constant to a list of prioritized searchables.
         """
         analyzers: List[Type[AnalyzerModScheme]] = []
         results = defaultdict(set)
 
+        # prepare analyzers
         for analyzer in self.analyzers:
             match analyzer:
                 case t if issubclass(t, AnalyzerModScheme):
@@ -185,12 +199,13 @@ class System:
                 case _:
                     raise TypeError(f'unknown analyzer type {analyzer}')
 
+        # Load saved shards from the default directory if data not provided
         if not cmf_data:
             cmf_data = {}
             for const_name in os.listdir(extraction_config.PATH_TO_SEARCHABLES):
-                imp_stream = Importer.import_stream(f'{extraction_config.PATH_TO_SEARCHABLES}\\{const_name}')
+                import_stream = Importer.import_stream(f'{extraction_config.PATH_TO_SEARCHABLES}\\{const_name}')
                 const_shards = []
-                for shards in imp_stream:
+                for shards in import_stream:
                     const_shards += shards
                 if const_shards:
                     cmf_data[const_shards[0].const] = const_shards
@@ -201,21 +216,22 @@ class System:
         # add unprioritized elements to the end
         for c, l in results.items():
             if c not in priorities:
-                continue
-            diff = results[c].difference(set(cmf_data[c]))
-            priorities[c].extend(diff)
+                priorities[c] = list(l)
+            else:
+                diff = l.difference(set(cmf_data[c]))
+                priorities[c].extend(diff)
         return priorities
 
     def __search_stage(self, priorities: Dict[Constant, List[Searchable]]):
-        # results = dict()
+        """
+        Preform deep search using the provided search module
+        :param priorities: a list prioritized searchables for each constant
+        """
+        # Execute searchers
         for data in priorities.values():
             self.searcher(data, sys_config.USE_LIReC).execute()
-            # results[const] = s.execute()
 
-            # if path := sys_config.EXPORT_SEARCH_RESULTS:
-            #     os.makedirs(path, exist_ok=True)
-                # TODO: print result summary for this constant, real export in the searcher class
-
+        # Print best delta for each constant
         for const in priorities.keys():
             best_delta = -sp.oo
             best_sv = None
