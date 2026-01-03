@@ -1,16 +1,15 @@
 from dreamer.utils.schemes.analysis_scheme import AnalyzerScheme
 from dreamer.utils.schemes.searchable import Searchable
 from dreamer.utils.storage.storage_objects import DataManager
-from dreamer.search.methods.serial.serial_searcher import SerialSearcher
+from dreamer.utils.ui.tqdm_config import SmartTQDM
+from dreamer.utils.constants.constant import Constant
+from dreamer.utils.types import *
 from dreamer.utils.logger import Logger
+from dreamer.search.methods.serial.serial_searcher import SerialSearcher
 from dreamer.configs import (
     sys_config,
     analysis_config
 )
-
-from dreamer.utils.ui.tqdm_config import SmartTQDM
-from dreamer.utils.constants.constant import Constant
-from dreamer.utils.types import *
 
 
 class Analyzer(AnalyzerScheme):

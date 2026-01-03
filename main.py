@@ -36,11 +36,6 @@ if __name__ == '__main__':
                 dreamer.catalan, 3, 2, 1, [
                     0, 0, sp.Rational(1, 2), sp.Rational(1, 2), sp.Rational(1, 2)
                 ]
-            ),
-            pFq_formatter(
-                dreamer.catalan, 4, 3, 1, [
-                    0, 0, sp.Rational(1, 2), sp.Rational(1, 2), sp.Rational(1, 2), 0, 0
-                ]
             )
         ],
         extractor=ShardExtractorMod,

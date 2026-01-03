@@ -11,7 +11,7 @@ import numpy as np
 class Hyperplane:
     """
     Represents a hyperplane as a sympy expression.
-    The expression might miss some symbols as the space the hyperplane lives in consists more axis than defined.
+    The expression might miss some symbols as the space the hyperplane lives in consists of more axes than defined.
     """
     expr: sp.Expr
     symbols: Optional[List[sp.Basic]] = None
@@ -32,47 +32,42 @@ class Hyperplane:
             raise ValueError(f'Expression is not linear: {self.expr}')
 
         self.sym_coef_map = self.expr.as_coefficients_dict()
-        self.poly = sp.Poly(self.expr)
         self.free_term = self.sym_coef_map.get(1, 0)
         self.linear_term = self.expr - self.free_term
-        if self.poly.coeffs()[0] < 1:
+        if sp.Poly(self.expr).coeffs()[0] < 1:
             self.linear_term = -self.linear_term
             self.free_term = -self.free_term
 
     def is_in_integer_shift(self) -> bool:
         """
         Checks if the hyperplane passes in shift points (Integer Solutions check).
-        Correctly handles Rational coefficients by clearing denominators.
         """
-        # 1. Extract ONLY the linear coefficients (exclude the free term!)
-        # We iterate over self.symbols to ensure we don't accidentally grab the '1' key
         coeffs = [self.sym_coef_map.get(s, sp.Integer(0)) for s in self.symbols]
 
-        # 2. Check for trivial case (0x + 0y + ... = C)
-        # If all coefficients are 0, valid only if free_term is 0
+        # if trivial c = 0
         if all(c == 0 for c in coeffs):
             return self.free_term == 0
 
-        # 3. Collect all terms to find Common Denominator
         all_terms = coeffs + [self.free_term]
-
-        # 4. Compute LCM of all denominators
         common_denom = sp.Integer(1)
         for val in all_terms:
             common_denom = sp.lcm(common_denom, sp.denom(val))
 
-        # 5. Scale everything to Integers (Linear Diophantine Equation form)
-        # Equation becomes: A1*x1 + ... + An*xn + C = 0
         int_coeffs = [sp.Integer(c * common_denom) for c in coeffs]
         int_free_term = sp.Integer(self.free_term * common_denom)
-
-        # 6. Apply Diophantine Condition
-        # Solution exists iff GCD(A1...An) divides C
         coeffs_gcd = sp.gcd(int_coeffs)
-
         return int_free_term % coeffs_gcd == 0
 
     def apply_shift(self, shift: Position) -> 'Hyperplane':
+        """
+        Applies a shift to this hyperplane.
+        :param shift: a shift in each axis
+        :return: The shifted hyperplane
+        """
+        expr = self.expr.subs({sym: sym + shift[sym] for sym in self.expr.free_symbols})
+        return Hyperplane(expr, symbols=self.symbols)
+
+    def remove_shift(self, shift: Position) -> 'Hyperplane':
         """
         Applies a shift to this hyperplane.
         :param shift: a shift in each axis
@@ -89,21 +84,28 @@ class Hyperplane:
         return self.linear_term, self.free_term
 
     @cached_property
-    def vectors(self):
+    def vectors(self) -> Tuple[np.ndarray, float]:
+        """
+        :return: a vector representation of the hyperplane (linear term as a coefficient vector, free term)
+        """
         linear = [self.sym_coef_map.get(sym, 0) for sym in self.symbols]
         return np.array(linear), self.free_term
 
     @property
-    def as_below_vector(self):
+    def as_below_vector(self) -> Tuple[np.ndarray, float]:
         """
-        linear + free <= 0 ---> linear <= -free
+        :return: A vector representation of the hyperplane in the form (linear term, -free term)
+
+        [ linear + free <= 0 ---> linear <= -free ]
         """
         linear, free = self.vectors
         return linear, -free
 
     @property
-    def as_above_vector(self):
+    def as_above_vector(self) -> Tuple[np.ndarray, float]:
         """
+        :return: A vector representation of the hyperplane in the form (-linear term, free term)
+
         linear + free >= 0 ---> linear >= -free --> -linear <= free
         """
         linear, free = self.vectors
@@ -117,27 +119,6 @@ class Hyperplane:
             linear2, free2 = other.equation_like
             return (linear.equals(linear2) and free == free2) or (linear.equals(-linear2) and free == -free2)
         return False
-        # # If symbols are ordered in another way still check for equality
-        # neg = False
-        # first = True
-        # for sym in self.symbols:
-        #     if sym not in other.symbols:
-        #         return False
-        #     if self.sym_coef_map[sym] == -other.sym_coef_map[sym]:
-        #         if first:
-        #             neg = True
-        #         elif not neg:
-        #             return False
-        #     elif self.sym_coef_map[sym] == other.sym_coef_map[sym]:
-        #         if neg:
-        #             return False
-        #     else:
-        #         return False
-        #     first = False
-        #
-        # if neg:
-        #     return self.free_term == -other.free_term
-        # return self.free_term == other.free_term
 
     def __hash__(self):
         return hash((self.equation_like, frozenset(self.symbols)))
