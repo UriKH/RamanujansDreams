@@ -6,11 +6,10 @@ from dreamer.utils.caching import cached_property
 
 
 class Constant:
-	"""
+    """
     Registry DP for Constant management and converting between mpmath and sympy numbers.
     """
-    
-    registry: Dict[str, 'Constant'] = dict()
+    registry: Dict[str, "Constant"] = dict()
 
     def __init__(
             self,
@@ -18,7 +17,7 @@ class Constant:
             value_sympy: sp.Expr,
             value_mpmath: Optional[Union[mp.mpf, mp.mpc]] = None
     ):
-    	"""
+        """
         :param name: name of the constant
         :param value_sympy: sympy expression representing the constant
         :param value_mpmath: optional - mpmath expression representing the constant (it must be equivalent to the sympy one)
@@ -81,8 +80,8 @@ class Constant:
     @staticmethod
     def is_registered(name: str) -> bool:
         """
-        Checks if a constant is already defined
-        :param name: Name of constnat to check
+        Checks if a constant is already defined.
+        :param name: Name of constant to check.
         :return: True if constant was already defined, false otherwise.
         """
         return name in Constant.registry
@@ -97,10 +96,10 @@ class Constant:
     @staticmethod
     def get_constant(name: str) -> 'Constant':
         """
-    	Retrieve a constant from the registry
-        :param name: name of constant to retrieve
-        :return: the constant
-        """ 
+        Retrieve a constant from the registry.
+        :param name: Name of constant to retrieve
+        :return: The constant
+        """
         return Constant.registry[name]
 
     def __hash__(self):

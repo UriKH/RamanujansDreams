@@ -56,10 +56,10 @@ class Shard(Searchable):
     def sample_trajectories(self, n_samples, *, strict: Optional[bool] = False) -> Set[Position]:
         """
         Sample trajectories from the shard.
-        :param n_samples: number of samples to generate
-        :param strict: if compute as n_samples, else compute n_samples * fraction.
+        :param n_samples: Number of samples to generate
+        :param strict: True -> compute as n_samples, else compute n_samples * fraction.
         (fraction of the cone is taking from the sphere)
-        :return: a set of sampled trajectories
+        :return: A set of sampled trajectories
         """
         def _estimate_cone_fraction(A, n_trials=5000):
             """

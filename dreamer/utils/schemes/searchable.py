@@ -1,25 +1,31 @@
 from abc import ABC, abstractmethod
-
 import numpy as np
-from ramanujantools import Position, Limit
-from ramanujantools.cmf import CMF
-import ramanujantools as rt
-from typing import Optional, Tuple, Set
 from LIReC.db.access import db
-from dreamer.utils.constants.constant import Constant
 import mpmath as mp
+import ramanujantools as rt
+from ramanujantools import Limit
 
+from dreamer.utils.constants.constant import Constant
 from dreamer.utils.logger import Logger
 from dreamer.utils.storage.storage_objects import SearchData, SearchVector
-import sympy as sp
 from dreamer.configs.search import search_config
+from dreamer.utils.types import *
 
 
 n = sp.symbols('n')
 
 
 class Searchable(ABC):
+    """
+    A template for a general searchable object (e.g., shards)
+    """
+
     def __init__(self, cmf: CMF, constant: Constant, shift: Position):
+        """
+        :param cmf: The CMF to search in.
+        :param constant: A constant to search for.
+        :param shift: The shift in the starting point of the CMF.
+        """
         self.cache = []
         self.cmf = cmf
         self.const = constant
@@ -27,26 +33,32 @@ class Searchable(ABC):
 
     @abstractmethod
     def in_space(self, point: Position) -> bool:
+        """
+        Checks if a point is inside the searchable object.
+        :param point: A point to check if it is inside the searchable object
+        :return: True if the point is inside the searchable object, false otherwise.
+        """
         raise NotImplementedError()
 
     @property
     def dim(self):
+        """
+        :return: Space (CMF) dimension.
+        """
         return self.cmf.dim()
 
     def calc_delta(self, traj_m, constant: sp.Expr, traj_len: float) \
             -> Tuple[Optional[float], Optional[rt.Matrix], Optional[float]]:
         """
-        Computes delta for a given trajectory, start point and constant.
-        :param cmf: the CMF to compute in.
-        :param traj: trajectory from the start point
-        :param start: start point to compute walk from.
-        :param constant: the constant to compute delta for.
-        :return: the pair: delta, estimated_value.
+        Computes delta for a given trajectory, start point, and constant.
+        :param traj_m: The trajectory matrix.
+        :param constant: The constant to compute delta for.
+        :param traj_len: The length of the trajectory vector.
+        :return: The pair (delta, estimated_value).
         """
         # Do walk
-        # with Logger.simple_timer('walk'):
         try:
-            walked = traj_m.walk({n: 1}, search_config.DEPTH_FROM_TRAJECTORY_LEN(traj_len) , {n: 0})
+            walked = traj_m.walk({n: 1}, search_config.DEPTH_FROM_TRAJECTORY_LEN(traj_len), {n: 0})
             walked = walked.inv().T
         except Exception as e:
             Logger(f'Unexpected exception when trying to walk, ignoring trajectory', Logger.Levels.warning).log(msg_prefix='\n')
@@ -61,7 +73,6 @@ class Searchable(ABC):
         values_vec = sp.Matrix(values)
 
         numerator, denom = None, None
-        # with Logger.simple_timer('cache search'):
         for v1, v2 in self.cache:
             v1 = sp.Matrix(v1).T
             v2 = sp.Matrix(v2).T
@@ -69,25 +80,31 @@ class Searchable(ABC):
             denom = v2.dot(values_vec)
             estimated = sp.Abs(sp.Rational(numerator, denom))
             err = sp.Abs(estimated - pi_30000)
-            if sp.N(err, 25) < 1e-12:
+            if sp.N(err, 25) < search_config.CACHE_ACCEPTANCE_THRESHOLD:
                 p, q = v1, v2
                 cache_hit = True
                 break
 
-        # If cache miss - use LIReC
-        # with Logger.simple_timer('cache miss'):
+        # If cache misses - use LIReC
         if not cache_hit:
             try:
-                # with Logger.simple_timer('Identify'):
                 res = db.identify([constant.evalf(300)] + t1_col[1:])
             except Exception as e:
-                # print(f'traj={traj_m}, constant={constant}, {e}')
+                # LIReC might fail for some reason like tolerance or something else.
+                # This is not expected to occur but could happen nonetheless and should be reported to the user.
+                # User should probably change the "depth from trajectory"
+                Logger(
+                    f'Note that LIReC failed with {e}\n'
+                    f'This is probably an issue with the current '
+                    f'{search_config.DEPTH_FROM_TRAJECTORY_LEN.__name__} configuration'
+                ).log(msg_prefix='\n')
                 return None, None, None
-                # raise Exception(f'LIReC failed with: {e}')
 
+            # if LIReC failed to identify the constant
             if not res:
                 return None, None, None
 
+            # extract p,q vectors
             res = res[0]
             res.include_isolated = 0
             estematedExpr = sp.nsimplify(str(res).rsplit(' ', 1)[0], rational=True)
@@ -97,24 +114,20 @@ class Searchable(ABC):
             syms = sp.symbols(f'c:{traj_m.shape[0]}')[1:]
             p, q = [p_dict[sym] for sym in [1] + list(syms)], [q_dict[sym] for sym in [1] + list(syms)]
 
-        # with Logger.simple_timer('check convergence'):
         # Check convergence
         try:
             converge, (_, limit, _) = self._does_converge(traj_m, p, q)
-            converge = True
         except Exception as e:
             print(f'convergence exception: {e}')
             converge = False
-
         if not converge:
             return None, None, None
 
-        # Add to cache
+        # Add p,q vectors to the cache
         if not cache_hit:
             self.cache.append((tuple(p), tuple(q)))
 
-        # with Logger.simple_timer('delta computation'):
-        # estimate constant
+        # Estimate constant
         p = sp.Matrix(p).T
         q = sp.Matrix(q).T
         if not cache_hit:
@@ -125,18 +138,13 @@ class Searchable(ABC):
         # check abnormal denominator and compute delta
         err = sp.Abs(estimated - pi_30000)
         denom = sp.denom(estimated)
-        if denom == 1:
-            # raise ZeroDivisionError('Denominator 1 caused zero division in delta calculation')
-            # Logger(f'Denominator 1 caused zero division in delta calculation',
-            #        Logger.Levels.warning).log()
-            return None, None, None
-        if denom < 1e6:
-            # raise Exception(f"Probably still rational as denominator is quite small: {denom}")
-            # Logger(f"Probably still rational as denominator is quite small: {denom}",
-            #        Logger.Levels.warning).log()
+        if sp.Abs(denom) <= search_config.MIN_ESTIMATE_DENOMINATOR:
+            # probably didn't converge for some reason
             return None, None, None
 
         delta = -1 - sp.log(err) / sp.log(denom)
+
+        # This part is not supposed to be reached at all, these are the final guardrails
         if delta == sp.oo or delta == sp.zoo:
             if err == 0:
                 Logger(f'delta guardrails failed, got delta={delta} with: error=0',
@@ -205,12 +213,22 @@ class Searchable(ABC):
 
     @staticmethod
     def _does_converge(t_mat: rt.Matrix, p, q) -> Tuple[bool, Tuple[Limit, Limit, Limit]]:
+        """
+        Checks if the trajectory matrix converges to the constant using the p, q vectors.
+        :param t_mat: The trajectory matrix to compute limits for.
+        :param p: p vector
+        :param q: q vector
+        :return: True if the trajectory matrix converges, false otherwise.
+        """
+        # TODO: This validation method can and should be improved
+        # compute limits
         l1, l2, l3 = t_mat.limit(
             {n: 1}, [950, 1000, 1050], {n: 0}
         )
-
         floats = []
         l = [l1, l2, l3]
+
+        # transform to floats
         for lim in l:
             mat = lim.current.inv().T
             t1_col = (mat / mat[0, 0]).col(0)
@@ -226,15 +244,27 @@ class Searchable(ABC):
         f1, f2, f3 = floats
         diff1 = abs(f1 - f2)
         diff2 = abs(f3 - f2)
-        if diff1 < 1e-10 and diff2 < 1e-10:
+
+        # check diffs
+        if diff1 < search_config.LIMIT_DIFF_ERROR_BOUND and diff2 < search_config.LIMIT_DIFF_ERROR_BOUND:
             return True, (l1, l2, l3)
         return False, (l1, l2, l3)
 
     @abstractmethod
     def get_interior_point(self) -> Position:
+        """
+        :return: A point inside the searchable
+        """
         raise NotImplementedError()
 
     @abstractmethod
     def sample_trajectories(self, n_samples: int, *, strict: Optional[bool] = False) -> Set[Position]:
+        """
+        Sample trajectories from the searchable.
+        :param n_samples: Number of trajectories in searchable or number of samples to generate (depends on 'strict').
+        :param strict: If true, sample exactly n_samples trajectories from the searchable,
+            else sample n_samples * fraction.
+        :return: A set of sampled trajectories
+        """
         raise NotImplementedError()
 

@@ -71,7 +71,7 @@ class Analyzer(AnalyzerScheme):
                     Logger(f'No best delta was found', Logger.Levels.warning).log(print_func=prog_bar.write)
         return managers
 
-    def prioritize(self, managers: Dict[Searchable, DataManager], ranks=3) -> Dict[Searchable, Dict[str, int]]:
+    def prioritize(self, managers: Dict[Searchable, DataManager], ranks: int = 3) -> Dict[Searchable, Dict[str, int]]:
         if ranks < 3:
             Logger('prioritization ranks must be >= 3 (resulting to default = 3), '
                    'continuing to prevent data loss', Logger.Levels.inform).log()

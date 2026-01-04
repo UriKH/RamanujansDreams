@@ -28,9 +28,7 @@ class MyAnalyzer(AnalyzerScheme):
     def prioritize(
             self,
             managers: Dict[Searchable, DataManager],
-            ranks=3     # This argument could be ignored as the module only wraps the analyzer
-                        # - thus you can do as you wish :)
-            # TODO: <your arguments here>
+            *args   # TODO: <your arguments here>
     ) -> Dict[Searchable, Dict[str, int]]:
         """
         Example: The idea here is to prioritize searchables by the delta found in them and by the dimension of the space.

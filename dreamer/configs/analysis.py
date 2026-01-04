@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from .configurable import Configurable
+from typing import Callable
 
 
 @dataclass
@@ -10,7 +11,7 @@ class AnalysisConfig(Configurable):
     # ============================= Parallelism and efficiency =============================
     USE_CACHING: bool = True  # use caching for lru_cache
 
-    NUM_TRAJECTORIES_FROM_DIM: callable = (lambda dim: 10 ** dim)     # #trajectories to analyze given searchable dims
+    NUM_TRAJECTORIES_FROM_DIM: Callable = (lambda dim: 10 ** dim)     # #trajectories to analyze given searchable dims
     IDENTIFY_THRESHOLD: float = -1  # consider a shard as related to a constant: threshold > identified_trajectories(%)
 
     # ============================= Printing and error management =============================

@@ -41,7 +41,7 @@ class CatchErrorInModule:
                     traceback.print_exc()
                 if self.fatal:
                     try:
-                        # This will throw an exception instead of exit if you are using a Notbook
+                        # This will throw an exception instead of exit if you are using a jupyter Notebook
                         __IPYTHON__
                         raise Exception('Stopping...')
                     except NameError:
@@ -61,7 +61,7 @@ class Module(ABC):
         """
         :param name: Module name
         :param description: Description of the module
-        :param version: A version of the module
+        :param version: The version of the module
         """
         self.name = name if name else self.__class__.__name__
         self.description = description
@@ -70,6 +70,6 @@ class Module(ABC):
     @abstractmethod
     def execute(self, *args, **kwargs):
         """
-        Executes the module. The return value and arguments are specified by the child classes
+        Executes the module. The child classes specify the return value and arguments
         """
         raise NotImplementedError
