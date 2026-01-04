@@ -1,44 +1,15 @@
 import time
-from numba import njit
 import numpy as np
-from servicemanager import LogErrorMsg
-from sympy.logic.algorithms.dpll2 import Level
 
 from dreamer.utils.logger import Logger
 from dreamer.utils.types import *
-
-
-@njit(cache=True)
-def gcd_recursive(a: int, b: int) -> int:
-    """
-    Computes GCD of a and b
-    """
-    while b:
-        a, b = b, a % b
-    return a
-
-
-@njit(cache=True)
-def get_gcd_of_array(arr) -> int:
-    """
-    Calculates GCD of a vector.
-    Returns 1 immediately if any pair gives 1.
-    """
-    d = len(arr)
-    if d == 0:
-        return 0
-    result = abs(arr[0])
-    for i in range(1, d):
-        result = gcd_recursive(result, abs(arr[i]))
-        if result == 1:
-            return 1
-    return result
+from .numba_utils import *
 
 
 @njit(cache=True)
 def is_valid_integer_point(point, A, b, R_sq) -> bool:
     """
-    Checks if a point is inside the cone and radius, and has coordinates gcd = 1.
+    Checks if a point is inside the cone and radius and has coordinates gcd = 1.
     :param point: A point to validate
     :param A: Matrix representing the cone
     :param b: Vector representing the cone's upper bound
@@ -169,6 +140,10 @@ def chrr_walker(A, A_cols, b, R_sq, start_point, n_desired, thinning, buf_out, m
 
 
 class CHRRSampler:
+    """
+    Utility class for sampling primitive points in a cone intersecting a hypersphere.
+    """
+
     def __init__(self, A, b, R, thinning=3, start=None):
         """
         Continuous Hierarchical Random Walker Sampler inside a cone Ax < b intersecting ball with radius R.
@@ -196,7 +171,7 @@ class CHRRSampler:
             return self.start
         d = self.A.shape[1]
         for _ in range(10000):
-            # Sample in small box around origin or uniform in R
+            # Sample in a small box around origin or uniform in R
             cand = np.random.uniform(-self.R / 10, self.R / 10, d)
             if np.linalg.norm(cand) > self.R:
                 continue
@@ -207,7 +182,7 @@ class CHRRSampler:
     def sample(self, n_samples):
         """
         Sample points inside a cone.
-        :param n_samples: Number of points in space, sample only the part which are inside the cone
+        :param n_samples: Number of points in space, sample only the part which is inside the cone
         :return: A set of points inside the cone with GCD of coordinates = 1
         """
         t0 = time.time()

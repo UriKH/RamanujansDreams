@@ -21,7 +21,7 @@ from dreamer.utils.ui.tqdm_config import SmartTQDM
 import itertools
 import os.path
 import sympy as sp
-from collections import deque, defaultdict
+from collections import defaultdict
 
 
 class ShardExtractorMod(ExtractionModScheme):
@@ -126,6 +126,10 @@ class ShardExtractor(ExtractionScheme):
         """
         # compute hyperplanes and prepare sample point
         hps = self.extract_cmf_hps()
+        if not hps:
+            return [
+                Shard(self.cmf, self.const, None, None, self.shift, self.symbols)
+            ]
         symbols = list(hps)[0].symbols
         points = [
             tuple(coord + shift for coord, shift in zip(p, self.shift.values()))

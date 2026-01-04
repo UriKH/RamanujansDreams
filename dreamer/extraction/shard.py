@@ -1,11 +1,9 @@
-"""
-Representation of a shard
-"""
 from dreamer.extraction.hyperplanes import Hyperplane
 from dreamer.utils.schemes.searchable import Searchable
 from dreamer.utils.types import *
 from dreamer.utils.constants.constant import Constant
-from .chrr_sampler import CHRRSampler
+from .sampler_chrr import CHRRSampler
+from .sampler_sphere import PrimitiveSphereSampler
 
 from scipy.special import gamma, zeta
 from scipy.optimize import linprog, milp, LinearConstraint, Bounds
@@ -16,8 +14,8 @@ class Shard(Searchable):
     def __init__(self,
                  cmf: CMF,
                  constant: Constant,
-                 A: np.ndarray,
-                 b: np.ndarray,
+                 A: np.ndarray | None,
+                 b: np.ndarray | None,
                  shift: Position,
                  symbols: List[sp.Symbol],
                  interior_point: Optional[Position] = None
@@ -26,7 +24,9 @@ class Shard(Searchable):
         :param cmf: The CMF this shard is a part of
         :param constant: The constant to search for in the shard
         :param A: Matrix A defining the linear terms in the inequalities
+            (if None, then the shard will be the whole space)
         :param b: Vector b defining the free terms in the inequalities
+            (if None, then the shard will be the whole space)
         :param shift: The shift in start points required
         :param symbols: Symbols used by the CMF which this shard is part of
         :param interior_point: A point within the shard
@@ -37,6 +37,7 @@ class Shard(Searchable):
         self.symbols = symbols
         self.shift = np.array([shift[sym] for sym in self.symbols])
         self.start_coord = interior_point
+        self.is_whole_space = self.A is None or self.b is None
 
     def in_space(self, point: Position) -> bool:
         """
@@ -44,6 +45,8 @@ class Shard(Searchable):
         :param point: A point to check if it is inside the shard
         :return: True if A @ point < b else False
         """
+        if self.is_whole_space:
+            return True
         point = np.array(point.sorted().values())
         return np.all(self.A @ point < self.b)
 
@@ -51,6 +54,8 @@ class Shard(Searchable):
         """
         :return: A point inside the shard
         """
+        if not self.start_coord:
+            return Position({s: sp.Integer(0) for s in self.symbols})
         return Position({sym: v for v, sym in zip(self.start_coord.values(), self.symbols)})
 
     def sample_trajectories(self, n_samples, *, strict: Optional[bool] = False) -> Set[Position]:
@@ -61,7 +66,7 @@ class Shard(Searchable):
         (fraction of the cone is taking from the sphere)
         :return: A set of sampled trajectories
         """
-        def _estimate_cone_fraction(A, n_trials=5000):
+        def _estimate_cone_fraction(A, n_trials=5000) -> float:
             """
             Helper to estimate what % of the sphere is covered by the cone.
             """
@@ -78,6 +83,13 @@ class Shard(Searchable):
             if frac == 0:
                 return 1.0 / n_trials  # Conservative lower bound
             return frac
+
+        if self.is_whole_space:
+            samples = PrimitiveSphereSampler(len(self.symbols)).sample(n_samples)
+            return {
+                Position({sym: sp.sympify(v) for v, sym in zip(p, self.symbols)})
+                for p in samples
+            }
 
         fraction = _estimate_cone_fraction(self.A) * 1.05   # always assume undersampling
         if strict:
