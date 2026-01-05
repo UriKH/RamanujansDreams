@@ -8,6 +8,10 @@ from contextlib import contextmanager
 
 
 class Exporter:
+    """
+    A utility class for exporting data into files as pickle or JSON
+    """
+    
     @classmethod
     def export(
         cls,
@@ -18,6 +22,16 @@ class Exporter:
         fmt: Formats = Formats.PICKLE,
         data: Any = None
     ):
+    	"""
+        Exports data into a into a file in a specific format. 
+        Note that there is no checking that the data could be written in this format.
+        :param root: Direcotry in which to create the new file.
+        :param f_name: Exported data file name.
+        :param exists_ok: If false throws an error if the directory already exists.
+        :param clean_exists: Removes all files from the direcotry if it already exists.
+        :param fmt: Chosen format to export.
+        :param data: Data to export.
+        """
         # make sure root directory is valid
         os.makedirs(root, exist_ok=True)
 
@@ -64,6 +78,9 @@ class Exporter:
         """
         Context manager for exporting a stream of data chunks.
         Yields a function that accepts data and writes it to a new file in the sequence.
+        :param root: Directory to store the streamed data in.
+        :param clean_exists: If true, removes all files from the already existing directory.
+        :param fmt: Format to save the data in.
         """
         # Prepare the directory
         if os.path.exists(root):
