@@ -5,14 +5,14 @@ from .formats import *
 
 
 class Importer:
-	"""
+    """
     A utility class for importing data from pickle or JSON files.
     """
-    
+
     @classmethod
     def imprt(cls, path: str):
         """
-        Imports data from path
+        Imports data from the provided path.
         :param path: Path to the file where the data is stored.
         """
         if not os.path.exists(path):

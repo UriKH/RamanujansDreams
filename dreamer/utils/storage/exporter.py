@@ -22,27 +22,27 @@ class Exporter:
         fmt: Formats = Formats.PICKLE,
         data: Any = None
     ):
-    	"""
-        Exports data into a into a file in a specific format. 
+        """
+        Exports data into a file in a specific format.
         Note that there is no checking that the data could be written in this format.
-        :param root: Direcotry in which to create the new file.
+        :param root: Directory, in which to create the new file.
         :param f_name: Exported data file name.
         :param exists_ok: If false throws an error if the directory already exists.
-        :param clean_exists: Removes all files from the direcotry if it already exists.
-        :param fmt: Chosen format to export.
+        :param clean_exists: Removes all files from the directory if it already exists.
+        :param fmt: The chosen format to export to.
         :param data: Data to export.
         """
-        # make sure root directory is valid
+        # make sure the root directory is valid
         os.makedirs(root, exist_ok=True)
 
-        # if as single file named f_name
+        # if as a single file named f_name
         if f_name:
             # cleanup if needed
             path = os.path.join(root, f_name + '.' + fmt.value)
             if os.path.exists(path) and not exists_ok:
                 raise FileExistsError(f"File {path} already exists")
 
-            # write file
+            # write to file
             match fmt:
                 case Formats.PICKLE:
                     with open(path, "wb") as f:
@@ -88,7 +88,7 @@ class Exporter:
                 shutil.rmtree(root)
                 os.makedirs(root)
             elif not exists_ok:
-                # Check if directory is empty, otherwise raise error if exists_ok is False
+                # Check if the directory is empty, otherwise raises an error if exists_ok is False
                 if os.listdir(root):
                     raise FileExistsError(f"Directory {root} already exists and is not empty")
         else:
