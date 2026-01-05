@@ -34,19 +34,22 @@ Common usage example with detailed instructions in [colab](https://colab.researc
 
 ## Structure and Notes
 ### Structure:
-The system is composed of 3 stages:
-1. Database - storing and retrieving mapping from a constant to the inspiration functions.
-2. Analysis - analysis of each of the CMFs i.e., filtering and prioritization of shards, borders, etc. 
-3. Search - deep and full search within the searchable spaces. This stage (will) contain further logic and particularly ascend logic.
+The system is composed of 4 stages:
+1. Loading - storing and retrieving mapping from a constant to the inspiration functions.
+2. Extraction - extraction of the searchables from the CMF of the inspiration functions.
+3. Analysis - analysis of each of the CMFs i.e., filtering and prioritization of shards, borders, etc. 
+4. Search - deep and full search within the searchable spaces. This stage (will) contain further logic and particularly ascend logic.
 
-**Note:** each module could be executed independently of the others. In its current version, the system only wraps the modules together and connect them. 
+**Note:** each module could be executed independently of the others. In its current version, the system only wraps the modules together and connects them. 
 
 ### Configuration
 Configuration management is done using distinct configuration files for each stage (or section - like `system`):
 - `loading` - `db_config` (as only databases need configurations here)
-- `analysis` - `analysis_config`
+- `extraction` - `extraction_config` (here you can specify where to save your searchables)
+- `analysis` - `analysis_config` 
 - `search` - `search_config`
 - `system` - `sys_config`
+- `logging` - `logging_config` (for debug and profiling and some formatting settings)
 
 
 Each `<X>_config` contains the configurations for this section. You can access those directly in order to view the current values.  
