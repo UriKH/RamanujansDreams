@@ -1,7 +1,7 @@
 # Ramanujan's Dreams
 
 ## Installation
-For installation as a package run: `pip install git+https://github.com/UriKH/RamanujanDreams.git`  
+For installation as a package run: `pip install git+https://github.com/UriKH/RamanujansDreams.git`  
 
 ## Usage
 Interaction with the system is via the System class (`from dreamer import System`) and using the config files.
