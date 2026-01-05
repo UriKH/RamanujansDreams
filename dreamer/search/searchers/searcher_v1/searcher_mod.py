@@ -15,10 +15,14 @@ import os
 
 class SearcherModV1(SearcherModScheme):
     """
-
+    A searcher module that performs a serial search over a list of searchable spaces.
     """
 
     def __init__(self, searchables: List[Searchable], use_LIReC: bool):
+        """
+        :param searchables: A list of searchable spaces to search in.
+        :param use_LIReC: If true, LIReC will be used to identify constants within the searchable spaces.
+        """
         super().__init__(
             searchables,
             use_LIReC,
@@ -28,6 +32,10 @@ class SearcherModV1(SearcherModScheme):
 
     @CatchErrorInModule(with_trace=sys_config.MODULE_ERROR_SHOW_TRACE, fatal=True)
     def execute(self) -> Dict[Searchable, DataManager]:
+        """
+        Executes the search. Computes the results per searchable space and exports them into a file while running.
+        :return: A mapping from searchables to their search results.
+        """
         if not self.searchables:
             return dict()
 

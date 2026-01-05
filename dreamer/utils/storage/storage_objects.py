@@ -23,7 +23,7 @@ class SearchVector:
 @dataclass
 class SearchData:
     """
-    A class representing a search data alongside a specific search vector
+    A class representing search data alongside a specific search vector
     """
     sv: SearchVector
     limit: float = None
@@ -45,6 +45,9 @@ class DataManager(UserDict[SearchVector, SearchData]):
     """
 
     def __init__(self, use_LIReC: bool):
+        """
+        :param use_LIReC: If true, LIReC will be used to identify constants within the searchable spaces.
+        """
         super().__init__()
         self.use_LIReC = use_LIReC
 

@@ -32,6 +32,10 @@ class Formatter(ABC):
 
     @abstractmethod
     def to_cmf(self) -> ShiftCMF:
+        """
+        Converts the Formatter to a CMF.
+        :return: The CMF with shift as ShiftCMF object
+        """
         raise NotImplementedError
 
     def _to_json_obj(self) -> dict:
@@ -44,17 +48,31 @@ class Formatter(ABC):
 
     @classmethod
     def fetch_from_registry(cls, name: str) -> Type['Formatter']:
+        """
+        Checks if a formatter is registered and returns it
+        :param name: The name of the formatter class
+        :return: The formatter class
+        """
         if name in cls.registry:
             return Formatter.registry[name]
         raise KeyError(f'{name} is not registered as a Formatter')
 
     def to_json_obj(self) -> Dict[str, Any]:
+        """
+        Converts the Formatter to a JSON object
+        :return: The JSON like object (dictionary)
+        """
         if not issubclass(self.__class__, Formatter):
             raise TypeError(f'Not a Formatter subclass: {type(self)}')
         return {TYPE_ANNOTATE: self.__class__.__name__, DATA_ANNOTATE: self._to_json_obj()}
 
     @classmethod
-    def from_json_obj(cls, src: dict):
+    def from_json_obj(cls, src: dict) -> 'Formatter':
+        """
+        Converts from a JSON object to the relevant Formatter
+        :param src: The source JSON like object (dictionary)
+        :return: The Formatter object
+        """
         try:
             if src[TYPE_ANNOTATE] not in cls.registry:
                 raise NotImplementedError(f'Not a Formatter subclass: {src[TYPE_ANNOTATE]}')

@@ -41,13 +41,12 @@ class Logger:
     def time_it(self, func):
         """
         Decorator to log the processing time of a function
-        :param func: the function to time
-        :return: the wrapped function
+        :param func: the function to time.
+        :return: the wrapped function.
         """
         @functools.wraps(func)
         def wrapper(*args, **kwarg):
             start = time.time()
-            # Logger(f'executing {func.__name__}', self.level).log(msg_prefix='\n')
             result = func(*args, **kwarg)
             end = time.time()
 
@@ -59,10 +58,11 @@ class Logger:
             return result
         return wrapper
 
-    def log(self, msg_prefix='', in_function: bool = False, print_func=print):
+    def log(self, msg_prefix='', in_function: bool = False):
         """
         Log a message with it's logging level to the standard output
         :param msg_prefix: the message level prefix for printing
+        :param in_function: Add the calling function name to the message
         """
         if not self.condition:
             return
@@ -96,6 +96,10 @@ class Logger:
 
     @staticmethod
     def log_exec(func):
+        """
+        :param func: A function to run.
+        :return: the wrapped function
+        """
         if not callable(func):
             raise Exception('Function is not callable, bad decorator')
 
@@ -130,6 +134,7 @@ class Logger:
         """
         A lightweight generator-based context manager.
         Useful for quick debugging without needing a class instance.
+        :param label: A label for the timer.
         """
         start = time.perf_counter()
         try:
@@ -140,7 +145,10 @@ class Logger:
                 print(f"{label}: {end - start:.6f} seconds")
 
     @staticmethod
-    def sleep(t: float):
-
+    def sleep(t: float) -> None:
+        """
+        Sleeps for a given time if configured to do so
+        :param t: Time to sleep
+        """
         if logging_config.SLEEP_TO_PRINT:
             time.sleep(t)

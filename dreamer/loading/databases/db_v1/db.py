@@ -131,34 +131,10 @@ class DB(DBScheme):
         return deleted
 
     def clear(self) -> None:
+        """
+        Cleans the database.
+        """
         self.Table.update({self.Table.family.name: '[]'}).execute()
-
-    # def add_inspiration_function(self, constant: Constant, func: Formatter) -> None:
-    #     """
-    #     Adds an inspiration function corresponding to a given constant to the database.
-    #     :param constant: The constant for which to update the inspiration funcs.
-    #     :param func: The inspiration function to add.
-    #     :raise FunctionAlreadyExists: If the inspiration function is already defined.
-    #     """
-    #     data = self.__get_as_json(constant)
-    #     if self.__check_if_defined(func, data):
-    #         raise FunctionAlreadyExists(FunctionAlreadyExists.default_msg + str(func))
-    #     data.append(func.to_json_obj())
-    #     DB.Table.update(constant=constant.name, family=json.dumps(data)).execute()
-
-    # def remove_inspiration_function(self, constant: Constant, func: Formatter) -> None:
-    #     """
-    #     Removes an inspiration function corresponding to a given constant from the database.
-    #     :param constant: The constant for which to update the inspiration funcs.
-    #     :param func: The inspiration function to be removed.
-    #     :raise FunctionDoesNotExist: If the inspiration function is not defined.
-    #     """
-    #     data = self.__get_as_json(constant)
-    #     if not self.__check_if_defined(func, data):
-    #         raise FunctionDoesNotExist(FunctionDoesNotExist.default_msg + str(func) + f" in {constant.name}")
-    #     data.remove(func.to_json_obj())
-    #     (self.Table.update({self.Table.family.name: json.dumps(data)})
-    #      .where(self.Table.constant == constant.name).execute())
 
     def __get_as_json(self, constant: Constant) -> List[Dict]:
         query = self.Table.select().where(self.Table.constant == constant.name)

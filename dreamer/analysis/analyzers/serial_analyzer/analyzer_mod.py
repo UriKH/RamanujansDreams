@@ -16,6 +16,9 @@ class AnalyzerModV1(AnalyzerModScheme):
     """
 
     def __init__(self, cmf_data: Dict[Constant, List[Searchable]]):
+        """
+        :param cmf_data: A mapping from each constant to the list of searchables.
+        """
         super().__init__(
             cmf_data,
             desc='Module for CMF analysis and shard search filtering and prioritization',
@@ -25,12 +28,8 @@ class AnalyzerModV1(AnalyzerModScheme):
     @CatchErrorInModule(with_trace=sys_config.MODULE_ERROR_SHOW_TRACE, fatal=True)
     def execute(self) -> Dict[Constant, List[Searchable]]:
         """
-        The main function of the module. It performs the following steps:
-        * Store all CMFs
-        * extract shards for each CMF
-        * for each CMF generate start points and trajectories
-        * search each shard for shallow search and get the data
-        * prioritize for deep search
+        Preforms an analysis using an analyzer and prioritize using its suggestions.
+        :return: A mapping from each constant to a list of prioritized searchables for deeper search.
         """
         def merge_dicts(dict_list: List[Dict]) -> Dict:
             merged = {}
@@ -39,30 +38,18 @@ class AnalyzerModV1(AnalyzerModScheme):
             return merged
 
         queues = {c: [] for c in self.cmf_data.keys()}
-        for constant, shards in (prog_bar := SmartTQDM(self.cmf_data.items(), desc='Analyzing constants and their CMFs',
-                                                  **sys_config.TQDM_CONFIG)):
+        for constant, shards in SmartTQDM(self.cmf_data.items(),
+                                          desc='Analyzing constants and their CMFs', **sys_config.TQDM_CONFIG):
             queue: List[Dict[Searchable, Dict[str, int]]] = []
             Logger(
                 Logger.buffer_print(sys_config.LOGGING_BUFFER_SIZE, f'Analyzing for {constant.name}', '=')
-            ).log(msg_prefix='\n', print_func=prog_bar.write)
-            # for s in shards:
-            cmf = shards[0].cmf
-            if issubclass(cmf.__class__, CMF):
-                Logger(
-                    Logger.buffer_print(sys_config.LOGGING_BUFFER_SIZE,
-                                        f'Current CMF is manual with dim={cmf.dim()} and shift {shards[0].shift}', '=')
-                ).log(msg_prefix='\n', print_func=prog_bar.write)
-            else:
-                Logger(
-                    Logger.buffer_print(sys_config.LOGGING_BUFFER_SIZE, f'Current CMF: {cmf} with shift {shards[0].shift}', '=')
-                ).log(msg_prefix='\n', print_func=prog_bar.write)
-                # TODO: add option to use mpf - depends on the use_LIReC I guess. maybe there is a way to use only sympy format
-            Logger.sleep(1)
-            analyzer = Analyzer(constant, shards[0].cmf, shards)
-            Logger.sleep(1)
+            ).log(msg_prefix='\n')
+
+            # TODO: add option to use mpf - depends on the use_LIReC I guess. maybe there is a way to use only sympy format
+            analyzer = Analyzer(constant, shards)
             dms = analyzer.search()
             queue.append(analyzer.prioritize(dms, PRIORITIZATION_RANKS))
-                # TODO: Now we want to take the DataManagers and convert whose to databases per CMF - I don't know if we really want this or not...
+            # TODO: Now we want to take the DataManagers and convert whose to databases per CMF - I don't know if we really want this or not...
             merged: Dict[Searchable, Dict[str, int]] = merge_dicts(queue)
             queues[constant] = sorted(
                 merged.keys(),

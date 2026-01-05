@@ -50,6 +50,8 @@ class FormattingError(JSONError):
             {...}
         ]
     }
+    
+    (or create an example manually by exporting a formatter to JSON)
     """
     pass
 

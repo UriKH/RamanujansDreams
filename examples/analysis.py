@@ -13,11 +13,9 @@ class MyAnalyzer(AnalyzerScheme):
     def __init__(
             self,
             const: Constant,
-            cmf: CMF,
             shards: List[Searchable],
             # TODO: <your arguments here>
     ):
-        self.cmf = cmf
         self.const = const
         self.shards = shards
 
@@ -70,10 +68,7 @@ class MyAnalyzerMod(AnalyzerModScheme):
                 self.cmf_data.items(), desc='Analyzing constants and their CMFs', **sys_config.TQDM_CONFIG
         ):
             # These sleeps are just to make the output look nicer (these could be ignored using the configurations)
-            Logger.sleep(1)
-            analyzer = MyAnalyzer(constant, shards[0].cmf, shards)
-            Logger.sleep(1)
-
+            analyzer = MyAnalyzer(constant, shards)
             dms = analyzer.search()
             prioritization: Dict[Searchable, Dict[str, int]] = analyzer.prioritize(
                 dms,

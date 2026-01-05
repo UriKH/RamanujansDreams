@@ -1,10 +1,7 @@
-from dreamer.utils.types import *
 from dreamer.utils.schemes.searcher_scheme import SearchMethod
 from dreamer.utils.storage.storage_objects import *
-from dreamer.utils.logger import Logger
 from dreamer.configs import search_config
 
-import sympy as sp
 import mpmath as mp
 from concurrent.futures import ProcessPoolExecutor
 from functools import partial
@@ -14,7 +11,7 @@ from dreamer.utils.schemes.searchable import Searchable
 class SerialSearcher(SearchMethod):
     """
     Serial trajectory searcher. \n
-    No parallelism or smart co-boundary. \n
+    A naive searcher.
     """
 
     def __init__(self,
@@ -24,8 +21,12 @@ class SerialSearcher(SearchMethod):
                  share_data: bool = True,
                  use_LIReC: bool = True):
         """
-        Creates a searcher
-        :param space: The space to search in.
+        :param space: The searchable to search in.
+        :param constant: The constant to look for in the subspace.
+        :param data_manager: The data manager to store search results in.
+            If no data manager is provided, a new one will be created, and it will not be shared.
+        :param share_data: If true, the data manager will be shared between searchables, otherwise it will be cloned.
+        :param use_LIReC: Use LIReC to identify constants within the searchable.
         """
         super().__init__(space, constant, use_LIReC, data_manager, share_data)
         self.data_manager = data_manager if data_manager else DataManager(use_LIReC)
@@ -39,13 +40,21 @@ class SerialSearcher(SearchMethod):
                find_gcd_slope: bool = True,
                trajectory_generator: Callable[int, int] = search_config.NUM_TRAJECTORIES_FROM_DIM
                ) -> DataManager:
+        """
+        Performs the search.
+        :param starts: A start point within the searchable.
+        :param find_limit: If true, compute the limit of the trajectory matrix.
+        :param find_eigen_values: If ture, compute the eigenvalues of the trajectory matrix.
+        :param find_gcd_slope: If true, compute the GCD slope.
+        :param trajectory_generator: A function that given the dimension of the searchable,
+            returns the number of trajectories to sample.
+        :return: The data manager containing the search results.
+        """
         if not starts:
-            # with Logger.simple_timer('compute start point'):
             starts = self.space.get_interior_point()
         if isinstance(starts, Position):
             starts = [starts]
 
-        # with Logger.simple_timer('sample trajectories'):
         trajectories = self.space.sample_trajectories(
             trajectory_generator(self.space.dim),
             strict=False
@@ -56,9 +65,7 @@ class SerialSearcher(SearchMethod):
         traj_lst = [p[0] for p in pairs]
         start_lst = [p[1] for p in pairs]
 
-        # with Logger.simple_timer(f'actual search'):
         if self.parallel:
-            # with Logger.simple_timer('parallel search'):
             results = self.pool.map(
                 partial(
                     self.space.compute_trajectory_data,
@@ -84,41 +91,3 @@ class SerialSearcher(SearchMethod):
                 )
                 self.data_manager[sd.sv] = sd
         return self.data_manager
-
-    @staticmethod
-    def sympy_to_mpmath(x):
-        if x is sp.zoo:
-            return mp.mpf('inf')
-        elif x.is_infinite:
-            if x == sp.oo:
-                return mp.mpf('inf')
-            elif x == -sp.oo:
-                return mp.mpf('-inf')
-            else:
-                return mp.mpf('-inf')  # zoo or directional infinity
-        else:
-            return mp.mpf(str(x.evalf(500)))
-
-    @staticmethod
-    def fraction_to_vectors(frac, symbols):
-        """
-        Convert a tuple (num, den) of sympy expressions into coefficient vectors.
-
-        Args:
-            frac: tuple (numerator_expr, denominator_expr)
-            symbols: list of sympy symbols [c1, c2, ...]
-
-        Returns:
-            (num_vec, den_vec): two lists of coefficients
-                Index 0 = constant term
-                Index i = coefficient of symbols[i-1]
-        """
-        num_expr, den_expr = frac
-
-        def expr_to_vector(expr, symbols):
-            coeffs = [expr.as_coeff_add(*symbols)[0]]  # constant term
-            for s in symbols:
-                coeffs.append(expr.coeff(s))
-            return [sp.sympify(c) for c in coeffs]
-
-        return expr_to_vector(num_expr, symbols), expr_to_vector(den_expr, symbols)

@@ -14,7 +14,15 @@ from dreamer.utils.schemes.module import CatchErrorInModule
 
 
 class BasicDBMod(DBModScheme):
+    """
+    A module for maintaining the inspiration function database.
+    """
+
     def __init__(self, path: Optional[str] = v1_config.DEFAULT_PATH, json_path: Optional[str] = None):
+        """
+        :param path: Path to the database file.
+        :param json_path: If DB usage uses a JSON file, a path to the JSON file is expected.
+        """
         super().__init__(
             description='Database module for inspiration function management',
             version='1'

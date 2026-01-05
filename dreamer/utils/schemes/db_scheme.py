@@ -39,6 +39,12 @@ class DBModScheme(Module):
 
     @abstractmethod
     def execute(self, constants: Optional[List[Constant] | Constant] = None) -> Dict[Constant, List[ShiftCMF]] | None:
+        """
+        Executes the module and returns the results, if any.
+        :param constants: Constants to relate to when executing the module.
+        :return: If relevant to the DB usage,
+            returns a mapping from constants to a list of CMFs and their respective shifts.
+        """
         raise NotImplementedError
 
     @staticmethod
@@ -48,10 +54,11 @@ class DBModScheme(Module):
             exits_ok: bool = False
     ) -> Dict[str, Any]:
         """
-        Export a future command into json
-        :param functions:
-        :param path:
-        :return:
+        Export a future command into JSON
+        :param functions: A formatter or a list of formatters to export as JSON.
+        :param path: Path to export to.
+        :param exits_ok: If true, do not raise an error if the file already exists.
+        :return: The JSON object (dictionary).
         """
         path = path if path else 'command'
         path = path if path.endswith('.json') else path + '.json'
@@ -121,12 +128,27 @@ class DBScheme(ABC):
 
     @abstractmethod
     def replace(self, constant: Constant, funcs: List[Formatter] | Formatter) -> None:
+        """
+        Replaces the funcs corresponding to the given constant.
+        :param constant: A constant to replace the funcs of.
+        :param funcs: A set of new funcs to replace the old ones with.
+        """
         raise NotImplementedError
 
     @abstractmethod
     def append(self, constant: Constant, funcs: List[Formatter] | Formatter) -> None:
+        """
+        Appends the funcs corresponding to the given constant.
+        :param constant: A constant to append the funcs to.
+        :param funcs: A set of funcs to append to the existing ones.
+        """
         raise NotImplementedError
 
     @abstractmethod
     def insert(self, constant: Constant, funcs: List[Formatter] | Formatter) -> None:
+        """
+        Inserts the funcs corresponding to the given constant (if constant is new, otherwise throws an error).
+        :param constant: A new constant to insert.
+        :param funcs: The set of funcs to insert.
+        """
         raise NotImplementedError

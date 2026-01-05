@@ -1,11 +1,7 @@
-"""
-Extractor is responsible for shard creation
-"""
 from dreamer.configs import (
     sys_config,
     extraction_config
 )
-from concurrent.futures import ProcessPoolExecutor
 from dreamer.extraction.hyperplanes import Hyperplane
 from dreamer.extraction.shard import Shard
 from dreamer.utils.schemes.extraction_scheme import ExtractionScheme, ExtractionModScheme
@@ -14,14 +10,15 @@ from dreamer.utils.constants.constant import Constant
 from dreamer.utils.schemes.searchable import Searchable
 from dreamer.utils.storage.exporter import Exporter
 from dreamer.utils.storage.formats import Formats
-from ramanujantools.cmf.d_finite import theta
 from dreamer.utils.types import *
 from dreamer.utils.ui.tqdm_config import SmartTQDM
 
+from concurrent.futures import ProcessPoolExecutor
 import itertools
 import os.path
 import sympy as sp
 from collections import defaultdict
+from ramanujantools.cmf.d_finite import theta
 
 
 class ShardExtractorMod(ExtractionModScheme):
