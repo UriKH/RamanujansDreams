@@ -5,8 +5,16 @@ from .formats import *
 
 
 class Importer:
+	"""
+    A utility class for importing data from pickle or JSON files.
+    """
+    
     @classmethod
     def imprt(cls, path: str):
+        """
+        Imports data from path
+        :param path: Path to the file where the data is stored.
+        """
         if not os.path.exists(path):
             raise ValueError(f"Path {path} does not exist")
 
@@ -28,6 +36,11 @@ class Importer:
 
     @classmethod
     def import_stream(cls, path):
+        """
+        A generatorr for data (imports data from direcotry in chunks)
+        :param path: Path of direcotry to import from as stream
+        """
+        
         if not os.path.exists(path):
             raise ValueError(f"Path {path} does not exist")
 
