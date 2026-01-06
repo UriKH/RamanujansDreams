@@ -79,6 +79,7 @@ class Exporter:
         Context manager for exporting a stream of data chunks.
         Yields a function that accepts data and writes it to a new file in the sequence.
         :param root: Directory to store the streamed data in.
+        :param exists_ok: If true, does not raise an error if the directory already exists.
         :param clean_exists: If true, removes all files from the already existing directory.
         :param fmt: Format to save the data in.
         """
