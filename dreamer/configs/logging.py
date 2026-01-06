@@ -7,6 +7,7 @@ from .configurable import Configurable
 class LogConfig(Configurable):
     SLEEP_TO_PRINT: bool = False
     PROFILE: bool = False
+    PROFILE_SUMMARY: bool = False
 
 
 logging_config: LogConfig = LogConfig()

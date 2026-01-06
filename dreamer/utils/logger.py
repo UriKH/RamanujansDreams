@@ -6,12 +6,15 @@ from contextlib import contextmanager
 from dreamer.configs import logging_config
 from typing import Callable
 
+from typing import Dict, Tuple
+
 
 class Logger:
     """
     Logging for terminal interface and debugging
     """
     print_func: Callable = print
+    timer_mapping: Dict[str, Tuple[int, float]] = dict()
 
     class Levels(Enum):
         message = auto()
@@ -128,9 +131,9 @@ class Logger:
             return f'{char * t} {text} {char * (t + 1)}'
         return f'{char * t} {text} {char * t}'
 
-    @staticmethod
+    @classmethod
     @contextmanager
-    def simple_timer(label):
+    def simple_timer(cls, label):
         """
         A lightweight generator-based context manager.
         Useful for quick debugging without needing a class instance.
@@ -143,6 +146,15 @@ class Logger:
             end = time.perf_counter()
             if logging_config.PROFILE:
                 print(f"{label}: {end - start:.6f} seconds")
+            if logging_config.PROFILE_SUMMARY:
+                n, s = cls.timer_mapping.get(label, (0, 0.0))
+                cls.timer_mapping[label] = (n + 1, s + (end - start))
+
+    @classmethod
+    def timer_summary(cls):
+        cls('\n======= profile summary ======').log()
+        for label, (n, s) in cls.timer_mapping.items():
+            cls(f"{label}: {n} runs, avg time: {s / n:.6f} seconds").log()
 
     @staticmethod
     def sleep(t: float) -> None:
