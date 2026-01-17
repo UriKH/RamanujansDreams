@@ -10,6 +10,7 @@ from dreamer.utils.logger import Logger
 from dreamer.utils.storage.storage_objects import SearchData, SearchVector
 from dreamer.configs.search import search_config
 from dreamer.utils.types import *
+from dreamer.utils.storage.frequency_list import FrequencyList
 
 
 n = sp.symbols('n')
@@ -26,7 +27,7 @@ class Searchable(ABC):
         :param constant: A constant to search for.
         :param shift: The shift in the starting point of the CMF.
         """
-        self.cache = []
+        self.cache = FrequencyList(max_size=100)
         self.cmf = cmf
         self.const = constant
         self.shift = shift
@@ -58,8 +59,9 @@ class Searchable(ABC):
         """
         # Do walk
         try:
-            walked = traj_m.walk({n: 1}, search_config.DEPTH_FROM_TRAJECTORY_LEN(traj_len), {n: 0})
-            walked = walked.inv().T
+            with Logger.simple_timer('Initial walk and inverse'):
+                walked = traj_m.walk({n: 1}, search_config.DEPTH_FROM_TRAJECTORY_LEN(traj_len), {n: 0})
+                walked = walked.inv().T
         except Exception as e:
             Logger(f'Unexpected exception when trying to walk, ignoring trajectory', Logger.Levels.warning).log(msg_prefix='\n')
             return None, None, None
@@ -68,27 +70,33 @@ class Searchable(ABC):
         # Cache lookup
         p, q = None, None
         values = [item for item in t1_col]
-        pi_30000 = constant.evalf(30000)
+        with Logger.simple_timer('constant heavy evalf'):
+            pi_30000 = constant.evalf(30000)
         cache_hit = False
         values_vec = sp.Matrix(values)
 
-        numerator, denom = None, None
-        for v1, v2 in self.cache:
-            v1 = sp.Matrix(v1).T
-            v2 = sp.Matrix(v2).T
-            numerator = v1.dot(values_vec)
-            denom = v2.dot(values_vec)
-            estimated = sp.Abs(sp.Rational(numerator, denom))
-            err = sp.Abs(estimated - pi_30000)
-            if sp.N(err, 25) < search_config.CACHE_ACCEPTANCE_THRESHOLD:
-                p, q = v1, v2
+        with Logger.simple_timer('cache lookup'):
+
+            def matcher(v):
+                v1, v2 = v
+                v1 = sp.Matrix(v1).T
+                v2 = sp.Matrix(v2).T
+                numerator = v1.dot(values_vec)
+                denom = v2.dot(values_vec)
+                estimated = sp.Abs(sp.Rational(numerator, denom))
+                err = sp.Abs(estimated - pi_30000)
+                return sp.N(err, 25) < search_config.CACHE_ACCEPTANCE_THRESHOLD
+
+            matched = self.cache.find(matcher)
+            if matched:
+                p, q = matched
                 cache_hit = True
-                break
 
         # If cache misses - use LIReC
         if not cache_hit:
             try:
-                res = db.identify([constant.evalf(300)] + t1_col[1:])
+                with Logger.simple_timer('LIReC identify'):
+                    res = db.identify([constant.evalf(300)] + t1_col[1:])
             except Exception as e:
                 # LIReC might fail for some reason like tolerance or something else.
                 # This is not expected to occur but could happen nonetheless and should be reported to the user.
@@ -105,18 +113,29 @@ class Searchable(ABC):
                 return None, None, None
 
             # extract p,q vectors
-            res = res[0]
-            res.include_isolated = 0
-            estematedExpr = sp.nsimplify(str(res).rsplit(' ', 1)[0], rational=True)
-            numerator, denom = sp.fraction(estematedExpr)
-            p_dict = numerator.as_coefficients_dict()
-            q_dict = denom.as_coefficients_dict()
-            syms = sp.symbols(f'c:{traj_m.shape[0]}')[1:]
-            p, q = [p_dict[sym] for sym in [1] + list(syms)], [q_dict[sym] for sym in [1] + list(syms)]
+            with Logger.simple_timer('LIReC identify - postprocessing'):
+                res = res[0]
+                res.include_isolated = 0
+                estimated_expr = sp.nsimplify(str(res).rsplit(' ', 1)[0], rational=True)
+                numerator, denom = sp.fraction(estimated_expr)
+                p_dict = numerator.as_coefficients_dict()
+                q_dict = denom.as_coefficients_dict()
+                syms = sp.symbols(f'c:{traj_m.shape[0]}')[1:]
+                ext_syms = [1] + list(syms)
+                p, q = [p_dict[sym] for sym in ext_syms], [q_dict[sym] for sym in ext_syms]
 
-        # Check convergence
+                # check convergence to constant
+                estimated = estimated_expr.subs(
+                    {sym: q_dict[sym] if q_dict[sym] != 0 else p_dict[sym] for sym in ext_syms}
+                )
+                err = sp.Abs(estimated - pi_30000)
+                if sp.N(err, 15) > search_config.IDENTIFY_CHECK_THRESHOLD:
+                    return None, None, None
+
+        # Check path convergence
         try:
-            converge, (_, limit, _) = self._does_converge(traj_m, p, q)
+            with Logger.simple_timer('convergence check'):
+                converge, (_, limit, _) = self._does_converge(traj_m, p, q)
         except Exception as e:
             print(f'convergence exception: {e}')
             converge = False
@@ -128,33 +147,34 @@ class Searchable(ABC):
             self.cache.append((tuple(p), tuple(q)))
 
         # Estimate constant
-        p = sp.Matrix(p).T
-        q = sp.Matrix(q).T
-        if not cache_hit:
-            numerator = p.dot(values_vec)
-            denom = q.dot(values_vec)
-        estimated = sp.Abs(sp.Rational(numerator, denom))
+        with Logger.simple_timer('estimate constant and delta compute'):
+            p = sp.Matrix(p).T
+            q = sp.Matrix(q).T
+            if not cache_hit:
+                numerator = p.dot(values_vec)
+                denom = q.dot(values_vec)
+            estimated = sp.Abs(sp.Rational(numerator, denom))
 
-        # check abnormal denominator and compute delta
-        err = sp.Abs(estimated - pi_30000)
-        denom = sp.denom(estimated)
-        if sp.Abs(denom) <= search_config.MIN_ESTIMATE_DENOMINATOR:
-            # probably didn't converge for some reason
-            return None, None, None
+            # check abnormal denominator and compute delta
+            err = sp.Abs(estimated - pi_30000)
+            denom = sp.denom(estimated)
+            if sp.Abs(denom) <= search_config.MIN_ESTIMATE_DENOMINATOR:
+                # probably didn't converge for some reason
+                return None, None, None
 
-        delta = -1 - sp.log(err) / sp.log(denom)
+            delta = -1 - sp.log(err) / sp.log(denom)
 
-        # This part is not supposed to be reached at all, these are the final guardrails
-        if delta == sp.oo or delta == sp.zoo:
-            if err == 0:
-                Logger(f'delta guardrails failed, got delta={delta} with: error=0',
-                       Logger.Levels.warning).log(msg_prefix='\n')
-            if denom == 0:
-                Logger(f'delta guardrails failed, got delta={delta} with: denom=0',
-                       Logger.Levels.warning).log(msg_prefix='\n')
-            if denom != 0 and err != 0:
-                Logger(f'delta guardrails failed, got delta={delta} with: \nerror={err} \ndenom = {denom}', Logger.Levels.warning).log(msg_prefix='\n')
-            return None, None, None
+            # This part is not supposed to be reached at all, these are the final guardrails
+            if delta == sp.oo or delta == sp.zoo:
+                if err == 0:
+                    Logger(f'delta guardrails failed, got delta={delta} with: error=0',
+                           Logger.Levels.warning).log(msg_prefix='\n')
+                if denom == 0:
+                    Logger(f'delta guardrails failed, got delta={delta} with: denom=0',
+                           Logger.Levels.warning).log(msg_prefix='\n')
+                if denom != 0 and err != 0:
+                    Logger(f'delta guardrails failed, got delta={delta} with: \nerror={err} \ndenom = {denom}', Logger.Levels.warning).log(msg_prefix='\n')
+                return None, None, None
 
         return float(delta.evalf(10)), rt.Matrix([p, q]), float(limit.as_float())
 

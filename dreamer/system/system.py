@@ -106,6 +106,7 @@ class System:
         # ANALYSIS STAGE - analyzes shards and prioritize search
         # =======================================================
         priorities = self.__analysis_stage(shard_dict)
+        Logger.timer_summary()
 
         # Store priorities to be used in the search stage and future runs
         filtered_priorities = dict()

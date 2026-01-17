@@ -6,7 +6,7 @@ from dreamer.utils.types import *
 
 
 class pFq_formatter(Formatter):
-    def __init__(self, const: str | Constant, p: int, q: int, z: sp.Expr | int, shifts: Position | list):
+    def __init__(self, const: str | Constant, p: int, q: int, z: sp.Expr | int, shifts: Optional[list] = None):
         """
         Represents a pFq and its CMF + allows conversion to and from JSON.
         :var const: The constant related to this pFq function
@@ -21,6 +21,8 @@ class pFq_formatter(Formatter):
         self.q = q
         self.z = z
         self.shifts = shifts
+        if self.shifts is None:
+            self.shifts = [0] * (self.p + self.q)
 
         if self.p <= 0 or self.q <= 0:
             raise ValueError("Non-positive values")

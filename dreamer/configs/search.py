@@ -15,6 +15,7 @@ class SearchConfig(Configurable):
     LIMIT_DIFF_ERROR_BOUND: float = 1e-10           # convergence limit difference thresholds
     MIN_ESTIMATE_DENOMINATOR: int = 1e6             # estimated = a / b (if b is too small, probably didn't converge)
     CACHE_ACCEPTANCE_THRESHOLD: float = 1e-12       # p,q vector cache acceptance threshold
+    IDENTIFY_CHECK_THRESHOLD: float = 1e-10
 
 
 search_config: SearchConfig = SearchConfig()
