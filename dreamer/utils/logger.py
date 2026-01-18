@@ -152,6 +152,8 @@ class Logger:
 
     @classmethod
     def timer_summary(cls):
+        if not logging_config.PROFILE_SUMMARY:
+            return
         cls('\n======= profile summary ======').log()
         for label, (n, s) in cls.timer_mapping.items():
             cls(f"{label}: {n} runs, avg time: {s / n:.6f} seconds").log()
