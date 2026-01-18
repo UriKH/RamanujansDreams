@@ -67,24 +67,26 @@ class Searchable(ABC):
             return None, None, None
         t1_col = (walked / walked[0, 0]).col(0)
 
-        # Cache lookup
+        # initial values
         p, q = None, None
         values = [item for item in t1_col]
         with Logger.simple_timer('constant heavy evalf'):
             pi_30000 = constant.evalf(30000)
+            pi_300 = constant.evalf(300)
         cache_hit = False
         values_vec = sp.Matrix(values)
+        estimated = None
+        err = None
 
+        # Cache lookup
         with Logger.simple_timer('cache lookup'):
-
             def matcher(v):
                 v1, v2 = v
                 v1 = sp.Matrix(v1).T
                 v2 = sp.Matrix(v2).T
                 numerator = v1.dot(values_vec)
                 denom = v2.dot(values_vec)
-                estimated = sp.Abs(sp.Rational(numerator, denom))
-                err = sp.Abs(estimated - pi_30000)
+                err = sp.Abs(sp.Abs(sp.Rational(numerator, denom)) - pi_300)
                 return sp.N(err, 25) < search_config.CACHE_ACCEPTANCE_THRESHOLD
 
             matched = self.cache.find(matcher)
@@ -96,7 +98,7 @@ class Searchable(ABC):
         if not cache_hit:
             try:
                 with Logger.simple_timer('LIReC identify'):
-                    res = db.identify([constant.evalf(300)] + t1_col[1:])
+                    res = db.identify([pi_300] + t1_col[1:])
             except Exception as e:
                 # LIReC might fail for some reason like tolerance or something else.
                 # This is not expected to occur but could happen nonetheless and should be reported to the user.
@@ -113,7 +115,7 @@ class Searchable(ABC):
                 return None, None, None
 
             # extract p,q vectors
-            with Logger.simple_timer('LIReC identify - postprocessing'):
+            with (Logger.simple_timer('LIReC identify - postprocessing')):
                 res = res[0]
                 res.include_isolated = 0
                 estimated_expr = sp.nsimplify(str(res).rsplit(' ', 1)[0], rational=True)
@@ -125,9 +127,7 @@ class Searchable(ABC):
                 p, q = [p_dict[sym] for sym in ext_syms], [q_dict[sym] for sym in ext_syms]
 
                 # check convergence to constant
-                estimated = estimated_expr.subs(
-                    {sym: q_dict[sym] if q_dict[sym] != 0 else p_dict[sym] for sym in ext_syms}
-                )
+                estimated = estimated_expr.subs({sym: v for sym, v in zip(ext_syms, list(values_vec))})
                 err = sp.Abs(estimated - pi_30000)
                 if sp.N(err, 15) > search_config.IDENTIFY_CHECK_THRESHOLD:
                     return None, None, None
@@ -150,13 +150,13 @@ class Searchable(ABC):
         with Logger.simple_timer('estimate constant and delta compute'):
             p = sp.Matrix(p).T
             q = sp.Matrix(q).T
-            if not cache_hit:
+            if not estimated or not err:
                 numerator = p.dot(values_vec)
                 denom = q.dot(values_vec)
-            estimated = sp.Abs(sp.Rational(numerator, denom))
+                estimated = sp.Abs(sp.Rational(numerator, denom))
+                err = sp.Abs(estimated - pi_30000)
 
             # check abnormal denominator and compute delta
-            err = sp.Abs(estimated - pi_30000)
             denom = sp.denom(estimated)
             if sp.Abs(denom) <= search_config.MIN_ESTIMATE_DENOMINATOR:
                 # probably didn't converge for some reason

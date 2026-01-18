@@ -66,13 +66,14 @@ if __name__ == '__main__':
         },
         search={
             'NUM_TRAJECTORIES_FROM_DIM': trajectory_compute_func,
-            'DEPTH_FROM_TRAJECTORY_LEN': (lambda traj_len: min(round(750 / traj_len)), 750)
+            'DEPTH_FROM_TRAJECTORY_LEN': (lambda traj_len: min(round(1000 / (traj_len / 5))), 1000),
+            # 'PARALLEL_SEARCH': False
             # number of trajectories to be auto generated in search if needed by the module
         }
     )
 
     System(
-        if_srcs=[pFq_formatter(zeta(2), 4, 3, 1)],
+        if_srcs=[pFq_formatter(zeta(2), 3, 2, 1)],
         extractor=ShardExtractorMod,
         analyzers=[analysis.AnalyzerModV1],
         searcher=search.SearcherModV1
