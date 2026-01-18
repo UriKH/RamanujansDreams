@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Callable
 from .configurable import Configurable
-from typing import List
+from typing import List, Tuple
 
 
 @dataclass
@@ -10,6 +10,7 @@ class SearchConfig(Configurable):
     SEARCH_VECTOR_CHUNK: int = 4                # number of search vectors per chunk for parallel search
     NUM_TRAJECTORIES_FROM_DIM: Callable = (lambda dim: 10 ** dim)
     DEPTH_FROM_TRAJECTORY_LEN: Callable = (lambda traj_len: min(round(1000 / (traj_len / 5)), 1000))
+    DEPTH_CONVERGENCE_THRESHOLD: Tuple[float] = (0.9, 0.95, 1.0)
 
     # ============================== Delta calculation and validation settings ==============================
     LIMIT_DIFF_ERROR_BOUND: float = 1e-10           # convergence limit difference thresholds

@@ -135,7 +135,7 @@ class Searchable(ABC):
         # Check path convergence
         try:
             with Logger.simple_timer('convergence check'):
-                converge, (_, limit, _) = self._does_converge(traj_m, p, q)
+                converge, (_, limit, _) = self._does_converge(traj_m, traj_len, p, q)
         except Exception as e:
             print(f'convergence exception: {e}')
             converge = False
@@ -232,18 +232,21 @@ class Searchable(ABC):
         return sd
 
     @staticmethod
-    def _does_converge(t_mat: rt.Matrix, p, q) -> Tuple[bool, Tuple[Limit, Limit, Limit]]:
+    def _does_converge(t_mat: rt.Matrix, traj_len, p, q) -> Tuple[bool, Tuple[Limit, Limit, Limit]]:
         """
         Checks if the trajectory matrix converges to the constant using the p, q vectors.
         :param t_mat: The trajectory matrix to compute limits for.
+        :param traj_len: The length of the trajectory vector.
         :param p: p vector
         :param q: q vector
         :return: True if the trajectory matrix converges, false otherwise.
         """
-        # TODO: This validation method can and should be improved
         # compute limits
+        depth = search_config.DEPTH_FROM_TRAJECTORY_LEN(traj_len)
         l1, l2, l3 = t_mat.limit(
-            {n: 1}, [950, 1000, 1050], {n: 0}
+            {n: 1},
+            [round(coef * depth) for coef in search_config.DEPTH_CONVERGENCE_THRESHOLD],
+            {n: 0}
         )
         floats = []
         l = [l1, l2, l3]
