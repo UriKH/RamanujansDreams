@@ -63,7 +63,7 @@ class Searchable(ABC):
                 walked = traj_m.walk({n: 1}, search_config.DEPTH_FROM_TRAJECTORY_LEN(traj_len), {n: 0})
                 walked = walked.inv().T
         except Exception as e:
-            Logger(f'Unexpected exception when trying to walk, ignoring trajectory', Logger.Levels.warning).log(msg_prefix='\n')
+            Logger(f'Unexpected exception when trying to walk, ignoring trajectory {e}', Logger.Levels.warning).log(msg_prefix='\n')
             return None, None, None
         t1_col = (walked / walked[0, 0]).col(0)
 

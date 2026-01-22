@@ -31,12 +31,19 @@ class Hyperplane:
         except sp.PolynomialError:
             raise ValueError(f'Expression is not linear: {self.expr}')
 
-        self.sym_coef_map = self.expr.as_coefficients_dict()
+        coef_dict = self.expr.as_coefficients_dict()
+        self.sym_coef_map = {k: coef_dict[k] if k in coef_dict.keys() else 0 for k in self.symbols + [1]}
         self.free_term = self.sym_coef_map.get(1, 0)
         self.linear_term = self.expr - self.free_term
-        if sp.Poly(self.expr).coeffs()[0] < 1:
-            self.linear_term = -self.linear_term
-            self.free_term = -self.free_term
+
+        for sym in self.symbols:
+            if self.sym_coef_map[sym] == 0:
+                continue
+            if self.sym_coef_map[sym] < 0:
+                self.linear_term = -self.linear_term
+                self.free_term = -self.free_term
+                self.expr = -self.expr
+            break
 
     def is_in_integer_shift(self) -> bool:
         """
@@ -67,19 +74,19 @@ class Hyperplane:
         expr = self.expr.subs({sym: sym + shift[sym] for sym in self.expr.free_symbols})
         return Hyperplane(expr, symbols=self.symbols)
 
-    def remove_shift(self, shift: Position) -> 'Hyperplane':
-        """
-        Applies a shift to this hyperplane.
-        :param shift: a shift in each axis
-        :return: The shifted hyperplane
-        """
-        expr = self.expr.subs({sym: sym - shift[sym] for sym in self.expr.free_symbols})
-        return Hyperplane(expr, symbols=self.symbols)
+    # def remove_shift(self, shift: Position) -> 'Hyperplane':
+    #     """
+    #     Applies a shift to this hyperplane.
+    #     :param shift: a shift in each axis
+    #     :return: The shifted hyperplane
+    #     """
+    #     expr = self.expr.subs({sym: sym - shift[sym] for sym in self.expr.free_symbols})
+    #     return Hyperplane(expr, symbols=self.symbols)
 
     @cached_property
     def equation_like(self) -> Tuple[sp.Expr, sp.Expr]:
         """
-        :return: lhs = rhs where lhs is the linear term and the rhs is the free trem
+        :return: lhs + rhs = 0 where lhs is the linear term and the rhs is the free trem
         """
         return self.linear_term, self.free_term
 
@@ -89,7 +96,7 @@ class Hyperplane:
         :return: a vector representation of the hyperplane (linear term as a coefficient vector, free term)
         """
         linear = [self.sym_coef_map.get(sym, 0) for sym in self.symbols]
-        return np.array(linear), self.free_term
+        return np.array(linear), self.sym_coef_map.get(1, 0)
 
     @property
     def as_below_vector(self) -> Tuple[np.ndarray, float]:
@@ -112,13 +119,11 @@ class Hyperplane:
         return -linear, free
 
     def __eq__(self, other: "Hyperplane"):
-        if len(self.symbols) != len(other.symbols):
+        if self.symbols != other.symbols:
             return False
-        if self.symbols == other.symbols:   # If symbols in the same order do simple equality
-            linear, free = self.equation_like
-            linear2, free2 = other.equation_like
-            return (linear.equals(linear2) and free == free2) or (linear.equals(-linear2) and free == -free2)
-        return False
+        linear, free = self.vectors
+        linear2, free2 = other.vectors
+        return (np.array_equal(linear, linear2) and (free == free2)) or (np.array_equal(linear, -linear2) and (free == -free2))
 
     def __hash__(self):
         return hash((self.equation_like, frozenset(self.symbols)))

@@ -50,7 +50,7 @@ if __name__ == '__main__':
     from dreamer.extraction.extractor import ShardExtractorMod
 
     trajectory_compute_func = (lambda d: max(10 ** (d - 1) / 2, 10))
-    trajectory_compute_func = (lambda d: 100)
+    trajectory_compute_func = (lambda d: 1000)
 
     config.configure(
         system={
@@ -73,7 +73,7 @@ if __name__ == '__main__':
     )
 
     System(
-        if_srcs=[pFq_formatter(zeta(2), 3, 2, 1)],
+        if_srcs=[pFq_formatter(zeta(2), 4, 3, 1)],
         extractor=ShardExtractorMod,
         analyzers=[analysis.AnalyzerModV1],
         searcher=search.SearcherModV1
