@@ -1,3 +1,5 @@
+import time
+
 import numpy as np
 
 from dreamer.configs import (
@@ -125,102 +127,108 @@ class ShardExtractor(ExtractionScheme):
         Extracts the shards from the CMF
         :return: The list of shards matching the CMF
         """
+
+        Logger(
+            f'In CMF no. {call_number}: Extracting shards '
+            f'(this could take a bit |>_<|, you can run with PROFILE=True to check times)',
+            level=Logger.Levels.info
+        ).log()
         # compute hyperplanes and prepare sample point
-        hps = self.extract_cmf_hps()
+        with Logger.simple_timer(f'Extract CMF hyperplanes'):
+            hps = self.extract_cmf_hps()
         if not hps:
             return [
                 Shard(self.cmf, self.const, None, None, self.shift, self.symbols)
             ]
         symbols = list(hps)[0].symbols
 
-        points = list(itertools.product(tuple(list(range(-2, 3))), repeat=len(symbols)))
-        points_np = np.array(points, dtype=np.float64)
-        shift_ordered = [self.shift[sym] for sym in symbols]
-        shift_np = np.array(shift_ordered, dtype=np.float64)
-        points_np += shift_np
+        def generate_grid_numpy(values, dim):
+            """
+            Generates a Cartesian product grid of 'values' repeated 'dim' times.
+            Equivalent to: np.array(list(itertools.product(values, repeat=dim)))
+            """
+            values = np.asarray(values)
+            n_values = len(values)
+            n_points = n_values ** dim
 
-        # prepare compute
-        linear_terms = []
-        bias_terms = []
-        for hp in hps:
-            lin, b = hp.vectors
-            linear_terms.append(lin.astype(np.float64))
-            bias_terms.append(float(b))
+            out = np.empty((n_points, dim), dtype=np.float64)
+            for i in range(dim):
+                # Calculate repeat frequencies
+                repeat_freq = n_values ** (dim - 1 - i)
+                tile_freq = n_values ** i
 
-        # compute point encodings
-        # shard_point_map = defaultdict(list)
-        hps_np = np.vstack(linear_terms)
-        bias_np = np.array(bias_terms, dtype=np.float64)
-        encodings, mask = compute_encodings(points_np, hps_np, bias_np)
-        valid_points = points_np[mask]
-        valid_encs = encodings[mask]
-        del points_np
+                pattern = np.repeat(values, repeat_freq)
+                out[:, i] = np.tile(pattern, tile_freq)
+            return out
 
-        if len(valid_points) > 0:
-            # Lexsort by encoding columns (groups identical rows)
-            # valid_encs.T is needed because lexsort expects keys as rows
+        # prepare sample points
+        with Logger.simple_timer(f'Generate points in grid'):
+            points_np = generate_grid_numpy(np.arange(-2, 3), len(symbols))
+            shift_ordered = [self.shift[sym] for sym in symbols]
+            shift_np = np.array(shift_ordered, dtype=np.float64)
+            points_np += shift_np
+
+        with Logger.simple_timer(f'Encode points'):
+            # prepare compute
+            linear_terms = []
+            bias_terms = []
+            for hp in hps:
+                lin, b = hp.vectors
+                linear_terms.append(lin.astype(np.float64))
+                bias_terms.append(float(b))
+
+            # fast compute point encodings
+            hps_np = np.vstack(linear_terms)
+            bias_np = np.array(bias_terms, dtype=np.float64)
+            encodings, mask = compute_encodings(points_np, hps_np, bias_np)
+            valid_points = points_np[mask]
+            valid_encs = encodings[mask]
+
+            # clean memory as soon as possible
+            del points_np
+            del encodings
+            del mask
+
+            # group points by encodings
             sort_order = np.lexsort(valid_encs.T)
-
             sorted_points = valid_points[sort_order]
             sorted_encs = valid_encs[sort_order]
-
-            # Find indices where the encoding changes
-            # (Check where row[i] != row[i-1])
             diff_mask = np.any(sorted_encs[1:] != sorted_encs[:-1], axis=1)
             split_indices = np.flatnonzero(diff_mask) + 1
-
-            # Split into list of arrays
             grouped_points_arrays = np.split(sorted_points, split_indices)
-
-            # Get the unique keys (take the first row from each group)
-            # We need the indices of the starts of groups: [0, split_1, split_2...]
             group_starts = np.concatenate(([0], split_indices))
             unique_keys = sorted_encs[group_starts]
 
-            # Reconstruct the map structure needed for the logic below
-            # Key: tuple(encoding), Value: ndarray of points
-            # (Using a dict comprehension is fast here because we iterate over SHARDS, not POINTS)
+            del sorted_points
+            del sorted_encs
+
             shard_point_map_stacked = {
                 tuple(key): group_pts
                 for key, group_pts in zip(unique_keys, grouped_points_arrays)
             }
-        else:
-            shard_point_map_stacked = {}
-
-        # for i in range(len(points_np)):
-        #     res = (hps_np @ points_np[i]) + bias_terms
-        #     if np.any(np.abs(res) < 1e-9):
-        #         continue
-        #     enc = np.where(res > 0, 1, -1).astype(int)
-        #     shard_point_map[tuple(enc)].append(points_np[i])
-        # del points_np   # clear this memory
 
         # preform pFq symetry based shard reduction
         if isinstance(self.cmf, pFq):
-            # shard_point_map_stacked = dict()
-            # index_shard_map = list(shard_point_map.keys())
-            # for k in shard_point_map.keys():
-            #     shard_point_map_stacked[k] = np.vstack(shard_point_map[k])
-            solved = solve_grouping(list(shard_point_map_stacked.values()), self.cmf.p, self.cmf.q)
-
             # extract shard encodings from UF
-            index_shard_map = list(shard_point_map_stacked.keys()) # remove this if needed!!!
-            shard_encs = set()
-            for i in range(len(index_shard_map)):
-                shard_id = find(solved, i)
-                shard_encs.add(index_shard_map[shard_id])
-            # print(shard_encs)
+            with Logger.simple_timer(f'Reduce shards using symetry'):
+                solved = solve_grouping(list(shard_point_map_stacked.values()), self.cmf.p, self.cmf.q)
+                index_shard_map = list(shard_point_map_stacked.keys())
+                shard_encs = set()
+                for i in range(len(index_shard_map)):
+                    shard_id = find(solved, i)
+                    shard_encs.add(index_shard_map[shard_id])
 
             # create shard objects
-            shards = []
-            for enc in shard_encs:
-                A, b, syms = Shard.generate_matrices(list(hps), enc)
-                shards.append(
-                    Shard(
-                        self.cmf, self.const, A, b, self.shift, syms,
-                        Position(zip(symbols, [sp.nsimplify(x, rational=True) for x in shard_point_map_stacked[enc][0]]))
+            with Logger.simple_timer(f'Create shards'):
+                shards = []
+                for enc in shard_encs:
+                    A, b, syms = Shard.generate_matrices(list(hps), enc)
+                    shards.append(
+                        Shard(
+                            self.cmf, self.const, A, b, self.shift, syms,
+                            Position(zip(symbols, [sp.nsimplify(x, rational=True) for x in shard_point_map_stacked[enc][0]]))
+                        )
                     )
-                )
             Logger(
                 f'In CMF no. {call_number}: found {len(hps)} hyperplanes and {len(shard_point_map_stacked)} shards.'
                 f' After reduction {len(shards)}',
@@ -229,12 +237,13 @@ class ShardExtractor(ExtractionScheme):
             return shards
 
         # create shard objects
-        shards = []
-        for enc in SmartTQDM(shard_point_map_stacked.keys(), desc='Creating shard objects', **sys_config.TQDM_CONFIG):
-            A, b, syms = Shard.generate_matrices(list(hps), enc)
-            shards.append(
-                Shard(self.cmf, self.const, A, b, self.shift, syms, Position(zip(symbols, shard_point_map_stacked[enc])))
-            )
+        with Logger.simple_timer(f'Create shards'):
+            shards = []
+            for enc in SmartTQDM(shard_point_map_stacked.keys(), desc='Creating shard objects', **sys_config.TQDM_CONFIG):
+                A, b, syms = Shard.generate_matrices(list(hps), enc)
+                shards.append(
+                    Shard(self.cmf, self.const, A, b, self.shift, syms, Position(zip(symbols, shard_point_map_stacked[enc])))
+                )
         Logger(
             f'In CMF no. {call_number}: found {len(hps)} hyperplanes and {len(shards)} shards ',
             level=Logger.Levels.info
@@ -261,22 +270,16 @@ def determinant_from_char_poly(p, q, z, axis: sp.Symbol):
         return sp.factor((-1) ** matrix_dim * free_coeff)
 
 
-@njit
-def substitute_linear(hps: np.ndarray, point: np.ndarray):
-    buf = np.zeros(hps.shape[0])
-    for i in range(hps.shape[0]):
-        for j in range(point.shape[0]):
-            buf[i] += hps[i, j] * point[j]
-    return buf
-
-
 @njit(parallel=True)
 def compute_encodings(points, hps_matrix, bias_vector):
     """
     Computes the sign signature for every point against all hyperplanes.
-    Returns:
-        encodings: (N, K) array of int8 (1 or -1)
-        validity: (N,) boolean mask (False if point is on a hyperplane)
+    :param points: The array of points (N, D) float64
+    :param hps_matrix: Hyperplane linear term part matrix (L, D)  float64
+    :param bias_vector: The hyperplane free term part (L,) float64
+    :returns:
+        Encodings: The encodings for each of the points as a (N, K) array of int8 (1 or -1).
+        Validity: A validity flag per encoding as a (N,) boolean mask (False if the point is on a hyperplane).
     """
     n_points = points.shape[0]
     n_hps = hps_matrix.shape[0]

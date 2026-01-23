@@ -71,6 +71,7 @@ if __name__ == '__main__':
             # number of trajectories to be auto generated in search if needed by the module
         }
     )
+    config.logging.PROFILE = True
 
     System(
         if_srcs=[pFq_formatter(zeta(2), 4, 3, 1)],

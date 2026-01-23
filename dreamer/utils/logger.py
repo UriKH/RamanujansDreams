@@ -145,7 +145,7 @@ class Logger:
         finally:
             end = time.perf_counter()
             if logging_config.PROFILE:
-                print(f"{label}: {end - start:.6f} seconds")
+                cls.print_func(f"{label}: {end - start:.6f} seconds")
             if logging_config.PROFILE_SUMMARY:
                 n, s = cls.timer_mapping.get(label, (0, 0.0))
                 cls.timer_mapping[label] = (n + 1, s + (end - start))
