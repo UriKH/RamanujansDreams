@@ -32,6 +32,12 @@ class Searchable(ABC):
         self.const = constant
         self.shift = shift
 
+    def __repr__(self):
+        return f'{self.__class__.__name__}(cmf={self.cmf}, constant={self.const}, shift={self.shift})'
+
+    def __str__(self):
+        return f'{self.cmf}_shift={tuple(self.shift.values())}_start={tuple(self.get_interior_point().values())}'
+
     @abstractmethod
     def in_space(self, point: Position) -> bool:
         """
@@ -103,10 +109,12 @@ class Searchable(ABC):
                 # LIReC might fail for some reason like tolerance or something else.
                 # This is not expected to occur but could happen nonetheless and should be reported to the user.
                 # User should probably change the "depth from trajectory"
+                var_name = f'{search_config.DEPTH_FROM_TRAJECTORY_LEN=}'.split('=')[0]
                 Logger(
-                    f'Note that LIReC failed with {e}\n'
+                    f'Note that LIReC failed with "{e}"\n'
                     f'This is probably an issue with the current '
-                    f'{search_config.DEPTH_FROM_TRAJECTORY_LEN.__name__} configuration'
+                    f'{var_name} configuration',
+                    Logger.Levels.warning
                 ).log(msg_prefix='\n')
                 return None, None, None
 
@@ -205,8 +213,9 @@ class Searchable(ABC):
             Logger(f'error while computing trajectory matrix for start={start}, trajectory={traj}: {e}', Logger.Levels.warning).log(msg_prefix='\n')
             return sd
 
+        traj_len = np.sqrt(np.sum(np.array(list(traj.values()), dtype=np.float64) ** 2)).astype(float)
         if find_limit:
-            limit = traj_m.limit({n: 1}, 2000, {n: 0})
+            limit = traj_m.limit({n: 1}, search_config.DEPTH_FROM_TRAJECTORY_LEN(traj_len), {n: 0})
             sd.limit = float(limit.as_float())
         if find_eigen_values:
             sd.ev = traj_m.eigenvals()
@@ -225,7 +234,7 @@ class Searchable(ABC):
             if not use_LIReC and not find_limit:
                 print('in order to compute delta must find limit - defaulting to using LIReC')
             sd.delta, sd.initial_values, sd.limit = self.calc_delta(
-                traj_m, self.const.value_sympy, np.sqrt(np.sum(np.array(list(traj.values()), dtype=np.float64) ** 2)).astype(float)
+                traj_m, self.const.value_sympy, traj_len
             )
             if sd.delta is not None:
                 sd.LIReC_identify = True

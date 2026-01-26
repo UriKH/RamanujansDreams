@@ -46,11 +46,11 @@ if __name__ == '__main__':
     from dreamer import analysis, search
     from dreamer.loading import *
     import sympy as sp  # import for fraction usage
-    from dreamer import pi, zeta
+    from dreamer import pi, zeta, log
     from dreamer.extraction.extractor import ShardExtractorMod
 
     trajectory_compute_func = (lambda d: max(10 ** (d - 1) / 2, 10))
-    trajectory_compute_func = (lambda d: 1000)
+    # trajectory_compute_func = (lambda d: 1000)
 
     config.configure(
         system={
@@ -65,8 +65,8 @@ if __name__ == '__main__':
             # number of trajectories to be auto generated in analysis
         },
         search={
-            'NUM_TRAJECTORIES_FROM_DIM': trajectory_compute_func,
-            'DEPTH_FROM_TRAJECTORY_LEN': (lambda traj_len: min(round(1000 / (traj_len / 5))), 1000),
+            'NUM_TRAJECTORIES_FROM_DIM': (lambda d: 1000),
+            'DEPTH_FROM_TRAJECTORY_LEN': (lambda traj_len: min(round(1000 / max(traj_len, 1))), 1000),
             # 'PARALLEL_SEARCH': False
             # number of trajectories to be auto generated in search if needed by the module
         }
@@ -74,8 +74,8 @@ if __name__ == '__main__':
     config.logging.PROFILE = True
 
     System(
-        if_srcs=[pFq_formatter(zeta(2), 4, 3, 1)],
+        if_srcs=[pFq_formatter(pi, 2, 1, sp.Rational(1, 2), [0, 0, sp.Rational(1, 2)])],
         extractor=ShardExtractorMod,
         analyzers=[analysis.AnalyzerModV1],
         searcher=search.SearcherModV1
-    ).run(constants=[zeta(2)])
+    ).run(constants=[pi])

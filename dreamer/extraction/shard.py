@@ -39,6 +39,9 @@ class Shard(Searchable):
         self.start_coord = interior_point
         self.is_whole_space = self.A is None or self.b is None
 
+    def __str__(self):
+        return f'{self.cmf}_shift={tuple(self.shift.tolist())}_start={tuple(self.get_interior_point().values())}'
+
     def in_space(self, point: Position) -> bool:
         """
         Checks if a point is inside the shard.
