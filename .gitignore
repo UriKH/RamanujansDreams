@@ -14,5 +14,5 @@ local_dev/
 *.json
 *.cache
 *.pkl
-*.ipynb
 main.py
+experiments/

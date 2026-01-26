@@ -73,7 +73,7 @@ if __name__ == '__main__':
     )
 
     System(
-        if_srcs=[pFq_formatter(zeta(2), 3, 2, 1)],
+        if_srcs=[pFq_formatter(pi, 3, 2, 1)],
         extractor=ShardExtractorMod,
         analyzers=[analysis.AnalyzerModV1],
         searcher=search.SearcherModV1
