@@ -8,21 +8,19 @@ Interaction with the system is via the System class (`from dreamer import System
 Common usage example with detailed instructions in [colab](https://colab.research.google.com/drive/1t6qo0LBBHTHTQyojXH566cNJRBhziN_3?usp=sharing).
 Note that the colab might be a bit slow and unstable due to the fact it's running online. For stable run download the colab as a Jupyter notebook (a notebook version is also available here: `./running-example.ipynb`).
 
-
-**Important:**
-There are a few important configurations you might want to change:
-- `search_config.NUM_TRAJECTORIES_FROM_DIM` - a lambda function of the form `lambda dim: int(...)` which computes the number of trajectories to be generated from a given dimension.
-- `analysis_config.NUM_TRAJECTORIES_FROM_DIM` - same configuration as above but for analysis stage.
-- `analysis_config.IDENTIFY_THRESHOLD` - "what fraction of the shard was identified as containing the constant?"
-
-**Notes:** 
+#### Notes: 
 - When loading inspiration functions, you can use formerly computed CMFs using pickle files (might be unstable), maunally list the inspiration functions or using a DB (instructions below).
 - Changing configurations could be done in two ways:
   1. Using `config.configure(<config_section> = {<configuration-name> : <new value>})` - that way new configurations could be added to newly developed modules.
   2. Using each section's private configuration e.g. `db_config.USAGE = DBUsage.RETRIEVE_DATA`.
   3. If you are a PyCharm user, your terminal might be a bit off due to `tqdm` defualt configurations.  
-   To make sure the terminal looks right set: `Run > Edit Configurations > Emulate terminal in output console`  
-  
+   To make sure the terminal looks right set: `Run > Edit Configurations > Emulate terminal in output console`
+
+#### Important:
+There are a few important configurations you might want to change:
+- `search_config.NUM_TRAJECTORIES_FROM_DIM` - a lambda function of the form `lambda dim: int(...)` which computes the number of trajectories to be generated from a given dimension.
+- `analysis_config.NUM_TRAJECTORIES_FROM_DIM` - same configuration as above but for analysis stage.
+- `analysis_config.IDENTIFY_THRESHOLD` - "what fraction of the shard was identified as containing the constant?"
 
 ### Loading using a DB
 1. You can add to the DB manually (i.e. by using its interface) or by loading via a json file
@@ -36,11 +34,21 @@ There are a few important configurations you might want to change:
 3. On system creation, insert the inspiration functions sources as `if_srcs=[BasicDBMod(json_path='my_append_instruction.json')]`  
    When reading this file, the system will execute the `append` command and will try to add the inspiration function ${}_2F_1(0.5)$ to set of inpiration funcitons for $\pi$ with the shift in start point as $x=0,~y=0,~z=\text{sp.Rational(1,2)}$.
 
+### Explore specific shards
+In order to explore only specific shards given the start points you could right:
+```
+System(
+    ...
+    extractor=partial(ShardExtractorMod, selected_start_points=[(-1, -1, 2)], only_selected = <True / False>),
+    ...
+).run(...)
+```
+
 (View full execution flow in the Colab link)
 
 **(!) Please note that this package is a work in progress. Please inform / open an issue for any bug or error you encounter :)**
 
-## Structure and Notes
+## Structure and Further Notes
 ### Structure:
 The system is composed of 4 stages:
 1. Loading - storing and retrieving mapping from a constant to the inspiration functions.
