@@ -60,10 +60,11 @@ class Searchable(ABC):
         # Do walk
         try:
             with Logger.simple_timer('Initial walk and inverse'):
-                walked = traj_m.walk({n: 1}, search_config.DEPTH_FROM_TRAJECTORY_LEN(traj_len), {n: 0})
+                walked = traj_m.walk({n: 1}, search_config.DEPTH_FROM_TRAJECTORY_LEN(traj_len, self.dim), {n: 0})
                 walked = walked.inv().T
         except Exception as e:
             Logger(f'Unexpected exception when trying to walk, ignoring trajectory', Logger.Levels.warning).log(msg_prefix='\n')
+            Logger(f'{e}', Logger.Levels.warning).log()
             return None, None, None
         t1_col = (walked / walked[0, 0]).col(0)
 
@@ -103,10 +104,14 @@ class Searchable(ABC):
                 # LIReC might fail for some reason like tolerance or something else.
                 # This is not expected to occur but could happen nonetheless and should be reported to the user.
                 # User should probably change the "depth from trajectory"
+                traj_len_compute = f'{search_config.DEPTH_FROM_TRAJECTORY_LEN=}'.split('=')[0]
+                number_of_trajectories = f'{search_config.NUM_TRAJECTORIES_FROM_DIM=}'.split('=')[0]
                 Logger(
-                    f'Note that LIReC failed with {e}\n'
-                    f'This is probably an issue with the current '
-                    f'{search_config.DEPTH_FROM_TRAJECTORY_LEN.__name__} configuration'
+                    f'Note that LIReC failed with error: "{e}"\n'
+                    f'This could be a result of an issue with the configurations of:'
+                    f' "{traj_len_compute}" or "{number_of_trajectories}" '
+                    f'\n NOTE: (if you are confidant, ignore this message as this error could be just a bad trajectory :) )',
+                    Logger.Levels.warning
                 ).log(msg_prefix='\n')
                 return None, None, None
 
@@ -135,7 +140,7 @@ class Searchable(ABC):
         # Check path convergence
         try:
             with Logger.simple_timer('convergence check'):
-                converge, (_, limit, _) = self._does_converge(traj_m, traj_len, p, q)
+                converge, (_, limit, _) = self._does_converge(traj_m, traj_len, p, q, self.dim)
         except Exception as e:
             print(f'convergence exception: {e}')
             converge = False
@@ -232,17 +237,18 @@ class Searchable(ABC):
         return sd
 
     @staticmethod
-    def _does_converge(t_mat: rt.Matrix, traj_len, p, q) -> Tuple[bool, Tuple[Limit, Limit, Limit]]:
+    def _does_converge(t_mat: rt.Matrix, traj_len: float, p, q, dim: int) -> Tuple[bool, Tuple[Limit, Limit, Limit]]:
         """
         Checks if the trajectory matrix converges to the constant using the p, q vectors.
         :param t_mat: The trajectory matrix to compute limits for.
         :param traj_len: The length of the trajectory vector.
         :param p: p vector
         :param q: q vector
+        :param dim: Dimension of the searchable.
         :return: True if the trajectory matrix converges, false otherwise.
         """
         # compute limits
-        depth = search_config.DEPTH_FROM_TRAJECTORY_LEN(traj_len)
+        depth = search_config.DEPTH_FROM_TRAJECTORY_LEN(traj_len, dim)
         l1, l2, l3 = t_mat.limit(
             {n: 1},
             [round(coef * depth) for coef in search_config.DEPTH_CONVERGENCE_THRESHOLD],

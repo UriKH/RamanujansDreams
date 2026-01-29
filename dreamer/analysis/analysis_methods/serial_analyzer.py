@@ -60,7 +60,8 @@ class Analyzer(AnalyzerScheme):
                         Logger.Levels.info
                     ).log()
                 else:
-                    cmf_msg = f'{shard.cmf}' if type(shard.cmf) is not CMF else '<raw cmf>'
+                    cmf_msg = f'{shard.cmf}'\
+                        if type(shard.cmf) is not CMF else '<raw cmf>'
                     Logger(
                         f'Identified {identified * 100:.2f}% of trajectories as containing "{self.const.name}"'
                         f'\n    > Best delta:\t {best_delta:.4f}'

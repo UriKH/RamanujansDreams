@@ -13,7 +13,7 @@ class ExtractionModScheme(Module):
 
     def __init__(self,
                  cmf_data: Dict[Constant, List[ShiftCMF]],
-                 name: Optional[str] = None, desc: Optional[str] = None, version: Optional[str] = None
+                 name: Optional[str] = None, desc: Optional[str] = None, version: Optional[str] = None,
                  ):
         """
         :param cmf_data: Mapping from constants to a list of CMFs and their shifts in start point.

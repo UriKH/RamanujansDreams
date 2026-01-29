@@ -26,10 +26,16 @@ class ShardExtractorMod(ExtractionModScheme):
     Module for shard extraction
     """
 
-    def __init__(self, cmf_data: Dict[Constant, List[ShiftCMF]]):
+    def __init__(self,
+                 cmf_data: Dict[Constant, List[ShiftCMF]],
+                 selected_start_points: Optional[List[Tuple[Union[int, sp.Rational]]]] = None,
+                 only_selected: bool = False
+    ):
         """
         Creates a shard extraction module
         :param cmf_data: A mapping from constants to a list of CMFs
+        :param selected_start_points: Optional list of start points to extract shards from.
+        :param only_selected: If True, only extract shards from the selected start points.
         """
         super().__init__(
             cmf_data,
@@ -37,6 +43,8 @@ class ShardExtractorMod(ExtractionModScheme):
             desc='Shard extractor module',
             version='0.0.1'
         )
+        self.selected_start_points = selected_start_points
+        self.only_selected = only_selected
 
     def execute(self) -> Dict[Constant, List[Searchable]]:
         """
@@ -57,8 +65,11 @@ class ShardExtractorMod(ExtractionModScheme):
                 for i, cmf_shift in enumerate(SmartTQDM(
                         cmf_list, desc=f'Computing shards',
                         **sys_config.TQDM_CONFIG)):
-                    extractor = ShardExtractor(const, cmf_shift.cmf, cmf_shift.shift)
-                    shards = extractor.extract_searchables(i + 1)
+                    extractor = ShardExtractor(
+                        const, cmf_shift.cmf, cmf_shift.shift,
+                        self.selected_start_points, self.only_selected
+                    )
+                    shards = extractor.extract_searchables(call_number=i + 1)
                     all_shards[const] += shards
                     export_stream(shards)
         return all_shards
@@ -69,15 +80,21 @@ class ShardExtractor(ExtractionScheme):
     Shard extractor is a representation of a shard finding method.
     """
 
-    def __init__(self, const: Constant, cmf: CMF, shift: Position):
+    def __init__(self, const: Constant, cmf: CMF, shift: Position,
+                 selected_start_points: Optional[List[Tuple[Union[int, sp.Rational]]]] = None,
+                 only_selected: bool = False):
         """
         Extracts the shards of a CMF
         :param const: Constant searched in this CMF
         :param cmf: CMF to extract shards from
         :param shift: The start point shift
+        :param selected_start_points: Optional list of start points to extract shards from.
+        :param only_selected: If True, only extract shards from the selected start points.
         """
         super().__init__(const, cmf, shift)
         self.pool = ProcessPoolExecutor() if extraction_config.PARALLELIZE else None
+        self.selected_start_points = selected_start_points
+        self.only_selected = only_selected
 
     @property
     def symbols(self) -> List[sp.Symbol]:
@@ -127,10 +144,19 @@ class ShardExtractor(ExtractionScheme):
             return [
                 Shard(self.cmf, self.const, None, None, self.shift, self.symbols)
             ]
+
         symbols = list(hps)[0].symbols
+        generated = []
+        selected = [] if self.selected_start_points is None else self.selected_start_points
+        if self.only_selected:
+            if self.selected_start_points is None:
+                raise ValueError('No start points were provided for extraction.')
+        else:
+            generated = list(itertools.product(tuple(list(range(-2, 3))), repeat=len(symbols)))
+
         points = [
             tuple(coord + shift for coord, shift in zip(p, self.shift.values()))
-            for p in list(itertools.product(tuple(list(range(-2, 3))), repeat=len(symbols)))
+            for p in generated + selected
         ]
 
         # validate shards using the sampled points
