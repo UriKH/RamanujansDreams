@@ -6,6 +6,7 @@ For installation as a package run: `pip install git+https://github.com/UriKH/Ram
 ## Usage
 Interaction with the system is via the System class (`from dreamer import System`) and using the config files.
 Common usage example with detailed instructions in [colab](https://colab.research.google.com/drive/1t6qo0LBBHTHTQyojXH566cNJRBhziN_3?usp=sharing).
+Note that the colab might be a bit slow and unstable due to the fact it is running online. For stable run download the colab as a Jupyter notebook (a version is available `./running-example.ipynb`).
 
 **Note:** 
 - When loading inspiration functions, you can use formerly computed CMFs using pickle files (might be unstable), maunally list the inspiration functions or using a DB (instructions below).
