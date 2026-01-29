@@ -8,7 +8,14 @@ Interaction with the system is via the System class (`from dreamer import System
 Common usage example with detailed instructions in [colab](https://colab.research.google.com/drive/1t6qo0LBBHTHTQyojXH566cNJRBhziN_3?usp=sharing).
 Note that the colab might be a bit slow and unstable due to the fact it's running online. For stable run download the colab as a Jupyter notebook (a notebook version is also available here: `./running-example.ipynb`).
 
-**Note:** 
+
+**Important:**
+There are a few important configurations you might want to change:
+- `search_config.NUM_TRAJECTORIES_FROM_DIM` - a lambda function of the form `lambda dim: int(...)` which computes the number of trajectories to be generated from a given dimension.
+- `analysis_config.NUM_TRAJECTORIES_FROM_DIM` - same configuration as above but for analysis stage.
+- `analysis_config.IDENTIFY_THRESHOLD` - "what fraction of the shard was identified as containing the constant?"
+
+**Notes:** 
 - When loading inspiration functions, you can use formerly computed CMFs using pickle files (might be unstable), maunally list the inspiration functions or using a DB (instructions below).
 - Changing configurations could be done in two ways:
   1. Using `config.configure(<config_section> = {<configuration-name> : <new value>})` - that way new configurations could be added to newly developed modules.

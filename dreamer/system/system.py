@@ -46,24 +46,7 @@ class System:
         Run the system given the constants to search for.
         :param constants: if None, search for constants defined in the configuration file in 'configs.database.py'.
         """
-        if not constants:
-            Logger(
-                'No constants provided, searching for all constants in configurations', Logger.Levels.warning
-            ).log()
-            constants = sys_config.CONSTANTS
-
-        # prepare constants for loading
-        if isinstance(constants, str | Constant):
-            constants = [constants]
-        as_obj = []
-        for c in constants:
-            if isinstance(c, str):
-                if not Constant.is_registered(c):
-                    raise ValueError(f'Constant "{c}" is not a registered constant.')
-                as_obj.append(Constant.get_constant(c))
-            else:
-                as_obj.append(c)
-        constants = as_obj
+        constants = self.__validate_constants(constants)
 
         # ======================================================
         # LOAD STAGE - loading constants (and optional storage)
@@ -297,3 +280,25 @@ class System:
                 raise Exception('This was not supposed to happen')
             result[key] = consensus
         return result
+
+    @staticmethod
+    def __validate_constants(constants) -> List[Constant]:
+        if not constants:
+            Logger(
+                'No constants provided, searching for all constants in configurations', Logger.Levels.warning
+            ).log()
+            constants = sys_config.CONSTANTS
+
+        # prepare constants for loading
+        if isinstance(constants, str | Constant):
+            constants = [constants]
+        as_obj = []
+        for c in constants:
+            if isinstance(c, str):
+                if not Constant.is_registered(c):
+                    raise ValueError(f'Constant "{c}" is not a registered constant.')
+                as_obj.append(Constant.get_constant(c))
+            else:
+                as_obj.append(c)
+        return as_obj
+
