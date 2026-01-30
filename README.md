@@ -1,4 +1,5 @@
 # Ramanujan's Dreams
+Ramanujan's Dreams is a tool for building a modular CMF search and analysis system.
 
 ## Installation
 For installation as a package run: `pip install git+https://github.com/UriKH/RamanujansDreams.git`  
