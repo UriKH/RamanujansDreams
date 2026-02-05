@@ -13,9 +13,11 @@ from dreamer.utils.storage import Exporter, Importer, Formats
 from dreamer.utils.types import *
 from dreamer.utils.logger import Logger
 from dreamer.utils.constants.constant import Constant
-from dreamer.configs.system import sys_config
-from dreamer.configs.extraction import extraction_config
+from dreamer.configs import config
 from functools import partial
+
+sys_config = config.system
+extraction_config = config.extraction
 
 
 class System:

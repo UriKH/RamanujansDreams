@@ -8,10 +8,11 @@ from ramanujantools import Limit
 from dreamer.utils.constants.constant import Constant
 from dreamer.utils.logger import Logger
 from dreamer.utils.storage.storage_objects import SearchData, SearchVector
-from dreamer.configs.search import search_config
+from dreamer.configs import config
 from dreamer.utils.types import *
 from dreamer.utils.storage.frequency_list import FrequencyList
 
+search_config = config.search
 
 n = sp.symbols('n')
 

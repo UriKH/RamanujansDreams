@@ -6,10 +6,10 @@ from dreamer.utils.constants.constant import Constant
 from dreamer.utils.types import *
 from dreamer.utils.logger import Logger
 from dreamer.search.methods.serial.serial_searcher import SerialSearcher
-from dreamer.configs import (
-    sys_config,
-    analysis_config
-)
+from dreamer.configs import config
+
+
+analysis_config = config.analysis
 
 
 class Analyzer(AnalyzerScheme):
@@ -33,7 +33,7 @@ class Analyzer(AnalyzerScheme):
         """
         managers = {}
 
-        for i, shard in enumerate(SmartTQDM(self.shards, desc=f'Analyzing shards', **sys_config.TQDM_CONFIG)):
+        for i, shard in enumerate(SmartTQDM(self.shards, desc=f'Analyzing shards', **config.system.TQDM_CONFIG)):
             start = shard.get_interior_point()
             Logger(f'{"=" * 10} SHARD NO. {i + 1} {"=" * 10}').log(msg_prefix='\n')
             if analysis_config.SHOW_START_POINT:
@@ -60,7 +60,7 @@ class Analyzer(AnalyzerScheme):
                         Logger.Levels.info
                     ).log()
                 else:
-                    cmf_msg = f'{str(shard.cmf)}'\
+                    cmf_msg = f'{repr(shard.cmf)}'\
                         if type(shard.cmf) is not CMF else '<raw cmf>'
                     Logger(
                         f'Identified {identified * 100:.2f}% of trajectories as containing "{self.const.name}"'

@@ -7,10 +7,11 @@ from dreamer.utils.types import *
 from dreamer.utils.ui.tqdm_config import SmartTQDM
 from ...methods.serial.serial_searcher import SerialSearcher
 from . import config as search_config_local
-from dreamer.configs.search import search_config
-from dreamer.configs.system import sys_config
-
+from dreamer.configs import config
 import os
+
+search_config = config.search
+sys_config = config.system
 
 
 class SearcherModV1(SearcherModScheme):
