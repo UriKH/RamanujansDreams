@@ -18,7 +18,7 @@ import itertools
 import os.path
 import sympy as sp
 from collections import defaultdict
-from ramanujantools.cmf.d_finite import theta
+from dreamer.utils.mp_manager import create_pool
 
 
 class ShardExtractorMod(ExtractionModScheme):
@@ -92,7 +92,7 @@ class ShardExtractor(ExtractionScheme):
         :param only_selected: If True, only extract shards from the selected start points.
         """
         super().__init__(const, cmf, shift)
-        self.pool = ProcessPoolExecutor() if extraction_config.PARALLELIZE else None
+        self.pool = create_pool() if extraction_config.PARALLELIZE else None
         self.selected_start_points = selected_start_points
         self.only_selected = only_selected
 

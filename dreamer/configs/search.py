@@ -5,12 +5,20 @@ from typing import List, Tuple
 import math
 
 
+def traj_from_dim(dim: int) -> int:
+    return 10 ** dim
+
+
+def depth_from_len(traj_len, dim) -> int:
+    return min(round(1500 / max(traj_len / math.sqrt(dim), 1)), 1500)
+
+
 @dataclass
 class SearchConfig(Configurable):
     PARALLEL_SEARCH: bool = True
     SEARCH_VECTOR_CHUNK: int = 4                # number of search vectors per chunk for parallel search
-    NUM_TRAJECTORIES_FROM_DIM: Callable = (lambda dim: 10 ** dim)
-    DEPTH_FROM_TRAJECTORY_LEN: Callable = (lambda traj_len, dim: min(round(1500 / max(traj_len / math.sqrt(dim), 1)), 1500))
+    NUM_TRAJECTORIES_FROM_DIM: Callable = traj_from_dim
+    DEPTH_FROM_TRAJECTORY_LEN: Callable = depth_from_len
     DEPTH_CONVERGENCE_THRESHOLD: Tuple[float] = (0.9, 0.95, 1.0)
 
     # ============================== Delta calculation and validation settings ==============================

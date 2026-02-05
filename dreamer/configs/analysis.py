@@ -3,6 +3,10 @@ from .configurable import Configurable
 from typing import Callable
 
 
+def traj_from_dim(dim: int) -> int:
+    return 10 ** dim
+
+
 @dataclass
 class AnalysisConfig(Configurable):
     """
@@ -11,7 +15,7 @@ class AnalysisConfig(Configurable):
     # ============================= Parallelism and efficiency =============================
     USE_CACHING: bool = True  # use caching for lru_cache
 
-    NUM_TRAJECTORIES_FROM_DIM: Callable = (lambda dim: 10 ** dim)     # #trajectories to analyze given searchable dims
+    NUM_TRAJECTORIES_FROM_DIM: Callable = traj_from_dim     # #trajectories to analyze given searchable dims
     IDENTIFY_THRESHOLD: float = -1  # consider a shard as related to a constant: threshold > identified_trajectories(%)
 
     # ============================= Printing and error management =============================

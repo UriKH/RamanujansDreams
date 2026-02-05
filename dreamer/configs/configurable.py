@@ -1,5 +1,5 @@
-from typing import List
-from dataclasses import fields, is_dataclass
+from typing import List, Dict, Any
+from dataclasses import fields, is_dataclass, asdict
 
 
 class Configurable:
@@ -7,6 +7,11 @@ class Configurable:
         if is_dataclass(self):
             return [f.name for f in fields(self)]
         return []
+
+    def export_configurations(self) -> Dict[str, Any]:
+        if is_dataclass(self):
+            return asdict(self)
+        return dict()
 
     def _format_value(self, value) -> str:
         """

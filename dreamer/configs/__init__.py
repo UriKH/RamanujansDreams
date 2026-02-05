@@ -5,7 +5,7 @@ from .search import search_config
 from .extraction import extraction_config
 from .logging import logging_config
 from dreamer.utils.logger import Logger
-from typing import Dict, List
+from typing import Dict, List, Any
 
 
 class ConfigManager:
@@ -51,6 +51,16 @@ class ConfigManager:
             'analysis': self.analysis.get_configurations(),
             'search': self.search.get_configurations(),
             'logging': self.logging.get_configurations(),
+        }
+
+    def export_configurations(self) -> Dict[str, Dict[str, Any]]:
+        return {
+            'system': self.system.export_configurations(),
+            'database': self.database.export_configurations(),
+            'extraction': self.extraction.export_configurations(),
+            'analysis': self.analysis.export_configurations(),
+            'search': self.search.export_configurations(),
+            'logging': self.logging.export_configurations(),
         }
 
 

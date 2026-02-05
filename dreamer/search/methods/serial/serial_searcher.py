@@ -1,9 +1,9 @@
+from dreamer.utils.mp_manager import create_pool
 from dreamer.utils.schemes.searcher_scheme import SearchMethod
 from dreamer.utils.storage.storage_objects import *
 from dreamer.configs import search_config
 
 import mpmath as mp
-from concurrent.futures import ProcessPoolExecutor
 from functools import partial
 from dreamer.utils.schemes.searchable import Searchable
 
@@ -31,7 +31,7 @@ class SerialSearcher(SearchMethod):
         super().__init__(space, constant, use_LIReC, data_manager, share_data)
         self.data_manager = data_manager if data_manager else DataManager(use_LIReC)
         self.parallel = search_config.PARALLEL_SEARCH
-        self.pool = ProcessPoolExecutor() if self.parallel else None
+        self.pool = create_pool() if self.parallel else None
 
     def search(self,
                starts: Optional[Position | List[Position]] = None,
