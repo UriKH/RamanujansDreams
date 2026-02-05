@@ -112,7 +112,7 @@ class ShardExtractor(ExtractionScheme):
         hps = set()
         symbols = list(self.cmf.matrices.keys())
         for s in symbols:
-            zeros = sp.solve(determinant_from_char_poly(self.cmf.p, self.cmf.q, self.cmf.z, s))
+            zeros = sp.solve(pFq.determinant(self.cmf.p, self.cmf.q, self.cmf.z, s))
             zeros = [Hyperplane(lhs - rhs, symbols) for solution in zeros for lhs, rhs in solution.items()]
             hps.update(set(zeros))
 
@@ -183,29 +183,6 @@ class ShardExtractor(ExtractionScheme):
             A, b, syms = Shard.generate_matrices(list(hps), enc)
             shards.append(Shard(self.cmf, self.const, A, b, self.shift, syms, shard_encodings[enc]))
         return shards
-
-
-# TODO: This method is temporary only, it should be fixed in Ramanujan tools and not here
-def determinant_from_char_poly(p, q, z, axis: sp.Symbol):
-    # substitute in differential equation & extract free coeff of normalized characteristic poly
-    # if y axis then increment the parameter
-    is_y_shift = True if axis.name.startswith("y") else False
-    coeff = axis - 1 if axis.name.startswith("y") else axis
-    S = sp.symbols("S")  # note that for a y shift, we're calculating the char poly for S^{-1}
-    theta_subs = coeff * S - coeff
-
-    differential_equation = pFq.differential_equation(p, q, z).subs({z: z})
-
-    char_poly_for_S = sp.monic(pFq.differential_equation(p, q, z).subs({theta: theta_subs}),
-                               S)  # how does this handle z eval?
-    free_coeff = char_poly_for_S.coeff_monomial(1)  # can also just subs
-
-    matrix_dim = char_poly_for_S.degree()
-
-    if is_y_shift:
-        return sp.factor((((-1) ** matrix_dim) / free_coeff).subs({axis: axis + 1}))
-    else:
-        return sp.factor((-1) ** matrix_dim * free_coeff)
 
 
 if __name__ == '__main__':
