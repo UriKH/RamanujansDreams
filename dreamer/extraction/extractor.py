@@ -26,16 +26,10 @@ class ShardExtractorMod(ExtractionModScheme):
     Module for shard extraction
     """
 
-    def __init__(self,
-                 cmf_data: Dict[Constant, List[ShiftCMF]],
-                 selected_start_points: Optional[List[Tuple[Union[int, sp.Rational]]]] = None,
-                 only_selected: bool = False
-    ):
+    def __init__(self, cmf_data: Dict[Constant, List[ShiftCMF]]):
         """
         Creates a shard extraction module
         :param cmf_data: A mapping from constants to a list of CMFs
-        :param selected_start_points: Optional list of start points to extract shards from.
-        :param only_selected: If True, only extract shards from the selected start points.
         """
         super().__init__(
             cmf_data,
@@ -43,8 +37,6 @@ class ShardExtractorMod(ExtractionModScheme):
             desc='Shard extractor module',
             version='0.0.1'
         )
-        self.selected_start_points = selected_start_points
-        self.only_selected = only_selected
 
     def execute(self) -> Dict[Constant, List[Searchable]]:
         """
@@ -66,8 +58,7 @@ class ShardExtractorMod(ExtractionModScheme):
                         cmf_list, desc=f'Computing shards',
                         **sys_config.TQDM_CONFIG)):
                     extractor = ShardExtractor(
-                        const, cmf_shift.cmf, cmf_shift.shift,
-                        self.selected_start_points, self.only_selected
+                        const, cmf_shift.cmf, cmf_shift.shift, cmf_shift.selected_start_points, cmf_shift.only_selected
                     )
                     shards = extractor.extract_searchables(call_number=i + 1)
                     all_shards[const] += shards

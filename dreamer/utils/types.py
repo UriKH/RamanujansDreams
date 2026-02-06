@@ -9,6 +9,8 @@ from dataclasses import dataclass, field
 class ShiftCMF:
     cmf: CMF
     shift: Position
+    selected_points: Optional[List[Tuple[int | sp.Rational]]] = None
+    only_selected: bool = False
     raw: bool = False
 
 

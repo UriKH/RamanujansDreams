@@ -6,7 +6,11 @@ from dreamer.utils.types import *
 
 
 class pFq_formatter(Formatter):
-    def __init__(self, const: str | Constant, p: int, q: int, z: sp.Expr | int, shifts: Optional[list] = None):
+    def __init__(self,
+                 const: str | Constant, p: int, q: int, z: sp.Expr | int, shifts: Optional[list] = None,
+                 selected_start_points: Optional[List[Tuple[Union[int, sp.Rational]]]] = None,
+                 only_selected: bool = False
+                 ):
         """
         Represents a pFq and its CMF + allows conversion to and from JSON.
         :var const: The constant related to this pFq function
@@ -15,6 +19,8 @@ class pFq_formatter(Formatter):
         :var z: The z value of the pFq.
         :var shifts: The shifts in starting point in the CMF where a sp.Rational indicates a shift.
         While 0 indicates no shift (None if not doesn't matter).
+        :param selected_start_points: Optional list of start points to extract shards from.
+        :param only_selected: If True, only extract shards from the selected start points.
         """
         super().__init__(const)
         self.p = p
@@ -30,6 +36,8 @@ class pFq_formatter(Formatter):
             raise ValueError("Shifts should be a list or Position")
         if self.p + self.q != len(self.shifts) and len(self.shifts) != 0:
             raise ValueError("Shifts should be of length p + q or 0")
+        self.selected_start_points = selected_start_points
+        self.only_selected = only_selected
 
     @classmethod
     def _from_json_obj(cls, data: dict | list) -> "pFq_formatter":
@@ -62,7 +70,7 @@ class pFq_formatter(Formatter):
         """
         cmf = pFq(self.p, self.q, self.z)
         self.shifts = Position({k: v for k, v in zip(cmf.matrices.keys(), self.shifts)})
-        return ShiftCMF(cmf, self.shifts)
+        return ShiftCMF(cmf, self.shifts, self.selected_start_points, self.only_selected)
 
     def __repr__(self):
         return json.dumps(self._to_json_obj())
