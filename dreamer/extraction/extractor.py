@@ -58,7 +58,7 @@ class ShardExtractorMod(ExtractionModScheme):
                         cmf_list, desc=f'Computing shards',
                         **sys_config.TQDM_CONFIG)):
                     extractor = ShardExtractor(
-                        const, cmf_shift.cmf, cmf_shift.shift, cmf_shift.selected_start_points, cmf_shift.only_selected
+                        const, cmf_shift.cmf, cmf_shift.shift, cmf_shift.selected_points, cmf_shift.only_selected
                     )
                     shards = extractor.extract_searchables(call_number=i + 1)
                     all_shards[const] += shards
