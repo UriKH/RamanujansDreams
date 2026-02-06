@@ -1,11 +1,13 @@
 from dreamer.utils.mp_manager import create_pool
 from dreamer.utils.schemes.searcher_scheme import SearchMethod
 from dreamer.utils.storage.storage_objects import *
-from dreamer.configs import search_config
+from dreamer.utils.schemes.searchable import Searchable
+from dreamer.configs import config
 
 import mpmath as mp
 from functools import partial
-from dreamer.utils.schemes.searchable import Searchable
+
+search_config = config.search
 
 
 class SerialSearcher(SearchMethod):

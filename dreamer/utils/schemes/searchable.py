@@ -250,7 +250,6 @@ class Searchable(ABC):
         """
         # compute limits
         depth = search_config.DEPTH_FROM_TRAJECTORY_LEN(traj_len, dim)
-        Logger(f'depth={depth}').log()
         l1, l2, l3 = t_mat.limit(
             {n: 1},
             [round(coef * depth) for coef in search_config.DEPTH_CONVERGENCE_THRESHOLD],

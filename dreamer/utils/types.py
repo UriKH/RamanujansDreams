@@ -13,6 +13,9 @@ class ShiftCMF:
     only_selected: bool = False
     raw: bool = False
 
+    def __hash__(self):
+        return hash((self.cmf, self.shift))
+
 
 Shift = Union[sp.Rational | int | None]     # a shift in starting point
 CMFtup = Tuple[CMF, Position]               # CMF tuple (CMF, list of shifts)
