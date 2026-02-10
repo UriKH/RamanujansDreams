@@ -35,15 +35,6 @@ There are a few important configurations you might want to change:
 3. On system creation, insert the inspiration functions sources as `if_srcs=[BasicDBMod(json_path='my_append_instruction.json')]`  
    When reading this file, the system will execute the `append` command and will try to add the inspiration function ${}_2F_1(0.5)$ to set of inpiration funcitons for $\pi$ with the shift in start point as $x=0,~y=0,~z=\text{sp.Rational(1,2)}$.
 
-### Explore specific shards
-In order to explore only specific shards given the start points you could right:
-```
-System(
-    ...
-    extractor=partial(ShardExtractorMod, selected_start_points=[(-1, -1, 2)], only_selected = <True / False>),
-    ...
-).run(...)
-```
 
 (View full execution flow in the Colab link)
 
