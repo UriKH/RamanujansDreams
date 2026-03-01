@@ -2,11 +2,11 @@ from dreamer.extraction.hyperplanes import Hyperplane
 from dreamer.utils.schemes.searchable import Searchable
 from dreamer.utils.types import *
 from dreamer.utils.constants.constant import Constant
+from dreamer.configs import config
 from .sampler_chrr import CHRRSampler
 from .sampler_sphere import PrimitiveSphereSampler
 
 from scipy.special import gamma, zeta
-from scipy.optimize import linprog, milp, LinearConstraint, Bounds
 import numpy as np
 
 
@@ -18,7 +18,8 @@ class Shard(Searchable):
                  b: np.ndarray | None,
                  shift: Position,
                  symbols: List[sp.Symbol],
-                 interior_point: Optional[Position] = None
+                 interior_point: Optional[Position] = None,
+                 use_inv_t: bool = config.search.DEFAULT_USES_INV_T
                  ):
         """
         :param cmf: The CMF this shard is a part of
@@ -30,8 +31,9 @@ class Shard(Searchable):
         :param shift: The shift in start points required
         :param symbols: Symbols used by the CMF which this shard is part of
         :param interior_point: A point within the shard
+        :param use_inv_t: Whether to use inverse transpose when preforming walk or not
         """
-        super().__init__(cmf, constant, shift)
+        super().__init__(cmf, constant, shift, use_inv_t)
         self.A = A
         self.b = b
         self.symbols = symbols
@@ -130,79 +132,6 @@ class Shard(Searchable):
         term = n_samples / (vol_unit_ball * density)
         R = term ** (1. / d)
         return R
-
-    # TODO: unused method - might be relevant
-    @staticmethod
-    def find_integer_feasible_point(A: np.ndarray, b: np.ndarray) -> np.ndarray | None:
-        """
-        Determines if there is an INTEGER solution x such that Ax <= b.
-
-        Args:
-            A (np.ndarray): Matrix coefficients.
-            b (np.ndarray): Bounds vector.
-
-        Returns:
-            tuple: (is_feasible, point)
-        """
-        n_vars = A.shape[1]
-
-        # 1. Objective: We just want feasibility, so coefficients are 0.
-        c = np.zeros(n_vars)
-
-        # 2. Constraints: Ax <= b
-        # milp uses the form: lb <= A.dot(x) <= ub
-        # So we set lb = -infinity, ub = b
-        constraints = LinearConstraint(A, lb=-np.inf, ub=b)
-
-        # 3. Integrality: 1 indicates the variable must be an integer
-        integrality = np.ones(n_vars)
-
-        # 4. Variable Bounds:
-        # By default, milp assumes x >= 0.
-        # If your point can be anywhere in space (negative integers),
-        # you MUST set bounds to +/- infinity.
-        var_bounds = Bounds(lb=-np.inf, ub=np.inf)
-
-        # 5. Solve
-        res = milp(c=c, constraints=constraints, integrality=integrality, bounds=var_bounds)
-
-        if res.success:
-            # Rounding is safe here because constraints are satisfied within tolerance,
-            # but pure integers are cleaner to return.
-            return np.round(res.x).astype(int)
-        else:
-            return None
-
-    # TODO: unused method - might be relevant
-    @staticmethod
-    def find_feasible_point(A: np.ndarray, b: np.ndarray) -> np.ndarray | None:
-        """
-        Determines if there is a solution x such that Ax <= b.
-
-        Args:
-            A (np.ndarray): The matrix of coefficients (m x n).
-            b (np.ndarray): The vector of bounds (m).
-
-        Returns:
-            tuple: (is_feasible (bool), point (np.ndarray or None))
-                   Returns a valid point 'x' if feasible, otherwise None.
-        """
-        # 1. Define the objective function (c).
-        # We don't care about minimizing anything, just finding *any* point.
-        # So we use a zero vector.
-        n_vars = A.shape[1]
-        c = np.zeros(n_vars)
-
-        # 2. Call the solver.
-        # 'highs' is the fastest open-source solver available in Scipy.
-        # We must set bounds=(None, None) because by default linprog assumes x >= 0.
-        res = linprog(c, A_ub=A, b_ub=b, bounds=(None, None), method='highs')
-
-        if res.success:
-            return res.x
-        else:
-            # Check specific status codes if needed (2 = infeasible)
-            return None
 
     @staticmethod
     def generate_matrices(

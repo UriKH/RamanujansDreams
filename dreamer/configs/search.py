@@ -20,6 +20,7 @@ class SearchConfig(Configurable):
     NUM_TRAJECTORIES_FROM_DIM: Callable = traj_from_dim
     DEPTH_FROM_TRAJECTORY_LEN: Callable = depth_from_len
     DEPTH_CONVERGENCE_THRESHOLD: Tuple[float] = (0.9, 0.95, 1.0)
+    DEFAULT_USES_INV_T: bool = True
 
     # ============================== Delta calculation and validation settings ==============================
     LIMIT_DIFF_ERROR_BOUND: float = 1e-10           # convergence limit difference thresholds

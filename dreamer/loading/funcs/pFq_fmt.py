@@ -3,13 +3,15 @@ import json
 from dreamer.utils.constants.constant import Constant
 from dreamer.loading.funcs.formatter import Formatter
 from dreamer.utils.types import *
+from dreamer.configs import config
 
 
 class pFq_formatter(Formatter):
     def __init__(self,
                  const: str | Constant, p: int, q: int, z: sp.Expr | int, shifts: Optional[list] = None,
-                 selected_start_points: Optional[List[Tuple[Union[int, sp.Rational]]]] = None,
-                 only_selected: bool = False
+                 selected_start_points: Optional[List[Tuple[Union[int, sp.Rational], ...]]] = None,
+                 only_selected: bool = False,
+                 use_inv_t: bool = config.search.DEFAULT_USES_INV_T
                  ):
         """
         Represents a pFq and its CMF + allows conversion to and from JSON.
@@ -22,7 +24,7 @@ class pFq_formatter(Formatter):
         :param selected_start_points: Optional list of start points to extract shards from.
         :param only_selected: If True, only extract shards from the selected start points.
         """
-        super().__init__(const)
+        super().__init__(const, use_inv_t)
         self.p = p
         self.q = q
         self.z = z
@@ -38,6 +40,7 @@ class pFq_formatter(Formatter):
             raise ValueError("Shifts should be of length p + q or 0")
         self.selected_start_points = selected_start_points
         self.only_selected = only_selected
+        self.use_inv_t = use_inv_t
 
     @classmethod
     def _from_json_obj(cls, data: dict | list) -> "pFq_formatter":
@@ -70,7 +73,7 @@ class pFq_formatter(Formatter):
         """
         cmf = pFq(self.p, self.q, self.z)
         self.shifts = Position({k: v for k, v in zip(cmf.matrices.keys(), self.shifts)})
-        return ShiftCMF(cmf, self.shifts, self.selected_start_points, self.only_selected)
+        return ShiftCMF(cmf, self.shifts, self.selected_start_points, self.only_selected, self.use_inv_t)
 
     def __repr__(self):
         return json.dumps(self._to_json_obj())

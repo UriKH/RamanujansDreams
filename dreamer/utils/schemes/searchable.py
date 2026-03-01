@@ -22,7 +22,7 @@ class Searchable(ABC):
     A template for a general searchable object (e.g., shards)
     """
 
-    def __init__(self, cmf: CMF, constant: Constant, shift: Position):
+    def __init__(self, cmf: CMF, constant: Constant, shift: Position, use_inv_t: bool):
         """
         :param cmf: The CMF to search in.
         :param constant: A constant to search for.
@@ -32,6 +32,7 @@ class Searchable(ABC):
         self.cmf = cmf
         self.const = constant
         self.shift = shift
+        self.use_inv_t = use_inv_t
 
     @abstractmethod
     def in_space(self, point: Position) -> bool:
@@ -237,8 +238,8 @@ class Searchable(ABC):
                 sd.LIReC_identify = True
         return sd
 
-    @staticmethod
-    def _does_converge(t_mat: rt.Matrix, traj_len: float, p, q, dim: int) -> Tuple[bool, Tuple[Limit, Limit, Limit]]:
+    def _does_converge(self, t_mat: rt.Matrix, traj_len: float, p, q, dim: int)\
+            -> Tuple[bool, Tuple[Limit, Limit, Limit]]:
         """
         Checks if the trajectory matrix converges to the constant using the p, q vectors.
         :param t_mat: The trajectory matrix to compute limits for.
@@ -260,7 +261,9 @@ class Searchable(ABC):
 
         # transform to floats
         for lim in l:
-            mat = lim.current.inv().T
+            mat = lim.current
+            if self.use_inv_t:
+                mat = mat.inv().T
             t1_col = (mat / mat[0, 0]).col(0)
             values = [item for item in t1_col]
             values_vec = sp.Matrix(values)

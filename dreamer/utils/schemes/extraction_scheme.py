@@ -38,15 +38,13 @@ class ExtractionScheme(ABC):
     A template for a general extraction method.
     """
 
-    def __init__(self, const: Constant, cmf: CMF, shift: Position):
+    def __init__(self, const: Constant, cmf_data: ShiftCMF):
         """
         :param const: A constant to extract searchables for.
-        :param cmf: The CMF to extract searchables from.
-        :param shift: The shift in the starting point of the CMF.
+        :param cmf_data: The CMF to extract searchables from and extra data about the CMF required for extraction.
         """
         self.const = const
-        self.cmf: CMF = cmf
-        self.shift: Position = shift
+        self.cmf_data: ShiftCMF = cmf_data
 
     @abstractmethod
     def extract_searchables(self, *args) -> List[Searchable]:

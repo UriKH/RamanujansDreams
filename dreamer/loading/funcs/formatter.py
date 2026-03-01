@@ -11,8 +11,9 @@ class Formatter(ABC):
     """
     registry: Dict[str, Type['Formatter']] = dict()
 
-    def __init__(self, const: str | Constant):
+    def __init__(self, const: str | Constant, use_inv_t: bool):
         self.const = const.name if isinstance(const, Constant) else const
+        self.use_inv_t = use_inv_t
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)

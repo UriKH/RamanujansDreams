@@ -13,12 +13,12 @@ from dreamer.utils.storage.formats import Formats
 from dreamer.utils.types import *
 from dreamer.utils.ui.tqdm_config import SmartTQDM
 
-from concurrent.futures import ProcessPoolExecutor
 import itertools
 import os.path
 import sympy as sp
 from collections import defaultdict
 from dreamer.utils.mp_manager import create_pool
+from numba import njit
 
 
 class ShardExtractorMod(ExtractionModScheme):
@@ -58,7 +58,7 @@ class ShardExtractorMod(ExtractionModScheme):
                         cmf_list, desc=f'Computing shards',
                         **sys_config.TQDM_CONFIG)):
                     extractor = ShardExtractor(
-                        const, cmf_shift.cmf, cmf_shift.shift, cmf_shift.selected_points, cmf_shift.only_selected
+                        const, cmf_shift
                     )
                     shards = extractor.extract_searchables(call_number=i + 1)
                     all_shards[const] += shards
@@ -71,28 +71,21 @@ class ShardExtractor(ExtractionScheme):
     Shard extractor is a representation of a shard finding method.
     """
 
-    def __init__(self, const: Constant, cmf: CMF, shift: Position,
-                 selected_start_points: Optional[List[Tuple[Union[int, sp.Rational]]]] = None,
-                 only_selected: bool = False):
+    def __init__(self, const: Constant, cmf_data: ShiftCMF):
         """
         Extracts the shards of a CMF
         :param const: Constant searched in this CMF
-        :param cmf: CMF to extract shards from
-        :param shift: The start point shift
-        :param selected_start_points: Optional list of start points to extract shards from.
-        :param only_selected: If True, only extract shards from the selected start points.
+        :param cmf_data: CMF to extract shards from, more data for extraction and later usage
         """
-        super().__init__(const, cmf, shift)
+        super().__init__(const, cmf_data)
         self.pool = create_pool() if extraction_config.PARALLELIZE else None
-        self.selected_start_points = selected_start_points
-        self.only_selected = only_selected
 
     @property
     def symbols(self) -> List[sp.Symbol]:
         """
         :return: The CMF's symbols
         """
-        return list(self.cmf.matrices.keys())
+        return list(self.cmf_data.cmf.matrices.keys())
 
     def extract_cmf_hps(self) -> Set[Hyperplane]:
         """
@@ -101,14 +94,14 @@ class ShardExtractor(ExtractionScheme):
         :return: A set of all filtered hyperplanes (i.e., hyperplanes with respect to the shift)
         """
         hps = set()
-        symbols = list(self.cmf.matrices.keys())
+        symbols = list(self.cmf_data.cmf.matrices.keys())
         for s in symbols:
-            zeros = sp.solve(pFq.determinant(self.cmf.p, self.cmf.q, self.cmf.z, s))
+            zeros = sp.solve(pFq.determinant(self.cmf_data.cmf.p, self.cmf_data.cmf.q, self.cmf_data.cmf.z, s))
             zeros = [Hyperplane(lhs - rhs, symbols) for solution in zeros for lhs, rhs in solution.items()]
             hps.update(set(zeros))
 
             poles = set()
-            for v in self.cmf.matrices[s].iter_values():
+            for v in self.cmf_data.cmf.matrices[s].iter_values():
                 if (den := v.as_numer_denom()[1]) == 1:
                     continue
 
@@ -120,7 +113,7 @@ class ShardExtractor(ExtractionScheme):
         # compute the relevant hyperplanes with respect to the shift
         filtered_hps = set()
         for hp in hps:
-            if hp.apply_shift(self.shift).is_in_integer_shift():
+            if hp.apply_shift(self.cmf_data.shift).is_in_integer_shift():
                 filtered_hps.add(hp)
         return filtered_hps
 
@@ -131,22 +124,24 @@ class ShardExtractor(ExtractionScheme):
         """
         # compute hyperplanes and prepare sample point
         hps = self.extract_cmf_hps()
+
         if not hps:
             return [
-                Shard(self.cmf, self.const, None, None, self.shift, self.symbols)
+                Shard(self.cmf_data.cmf, self.const, None, None, self.cmf_data.shift, self.symbols,
+                      use_inv_t=self.cmf_data.use_inv_t)
             ]
 
         symbols = list(hps)[0].symbols
         generated = []
-        selected = [] if self.selected_start_points is None else self.selected_start_points
-        if self.only_selected:
-            if self.selected_start_points is None:
+        selected = [] if self.cmf_data.selected_points is None else self.cmf_data.selected_points
+        if self.cmf_data.only_selected:
+            if self.cmf_data.selected_points is None:
                 raise ValueError('No start points were provided for extraction.')
         else:
             generated = list(itertools.product(tuple(list(range(-2, 3))), repeat=len(symbols)))
 
         points = [
-            tuple(coord + shift for coord, shift in zip(p, self.shift.values()))
+            tuple(coord + shift for coord, shift in zip(p, self.cmf_data.shift.values()))
             for p in generated + selected
         ]
 
@@ -160,6 +155,30 @@ class ShardExtractor(ExtractionScheme):
                 if res == 0:
                     break
                 enc.append(1 if res > 0 else -1)
+                # sign = 0 if res == 0 else 1 if res > 0 else -1
+                # enc.append(sign)
+
+            # if 0 in enc:
+            #     # dups = self.__generate_dups(enc)
+            #     results = []
+            #     dups = [enc]
+            #
+            #     while len(dups) != 0:
+            #         enc = dups.pop()
+            #         if 0 not in enc:
+            #             results.append(enc)
+            #         else:
+            #             for i, sign in enumerate(enc):
+            #                 if sign == 0:
+            #                     temp = enc.copy()
+            #                     temp[i] = 1
+            #                     temp2 = enc.copy()
+            #                     temp2[i] = -1
+            #                     dups.extend([temp, temp2])
+            #                     break
+            #     for dup in results:
+            #         shard_encodings[tuple(dup)] = Position({sym: coord for sym, coord in zip(symbols, dup)})
+            # else:
             if len(enc) == len(hps):
                 shard_encodings[tuple(enc)] = Position(point_dict)
 
@@ -172,8 +191,29 @@ class ShardExtractor(ExtractionScheme):
         shards = []
         for enc in SmartTQDM(shard_encodings.keys(), desc='Creating shard objects', **sys_config.TQDM_CONFIG):
             A, b, syms = Shard.generate_matrices(list(hps), enc)
-            shards.append(Shard(self.cmf, self.const, A, b, self.shift, syms, shard_encodings[enc]))
+            shards.append(Shard(self.cmf_data.cmf, self.const, A, b, self.cmf_data.shift, syms, shard_encodings[enc], self.cmf_data.use_inv_t))
         return shards
+
+    @staticmethod
+    @njit
+    def __generate_dups(enc):
+        results = []
+        dups = [enc]
+
+        while len(dups) != 0:
+            enc = dups.pop()
+            if 0 not in enc:
+                results.append(enc)
+            else:
+                for i, sign in enumerate(enc):
+                    if sign == 0:
+                        temp = enc.copy()
+                        temp[i] = 1
+                        temp2 = enc.copy()
+                        temp2[i] = -1
+                        dups.extend([temp, temp2])
+                        break
+        return results
 
 
 if __name__ == '__main__':
