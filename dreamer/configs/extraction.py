@@ -9,6 +9,7 @@ class ExtractionConfig(Configurable):
     """
     PATH_TO_SEARCHABLES: str = 'searchables'
     PARALLELIZE: bool = True
+    BASE_EDGE_LENGTH: int = 2
 
 
 extraction_config: ExtractionConfig = ExtractionConfig()
