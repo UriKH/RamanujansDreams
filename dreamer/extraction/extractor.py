@@ -12,13 +12,16 @@ from dreamer.utils.storage.exporter import Exporter
 from dreamer.utils.storage.formats import Formats
 from dreamer.utils.types import *
 from dreamer.utils.ui.tqdm_config import SmartTQDM
+from dreamer.configs import config
+from dreamer.utils.mp_manager import create_pool
 
-import itertools
 import os.path
 import sympy as sp
 from collections import defaultdict
-from dreamer.utils.mp_manager import create_pool
-from numba import njit
+from numba.typed import Dict
+import math
+import numpy as np
+from .utils import initial_points as init_points
 
 
 class ShardExtractorMod(ExtractionModScheme):
@@ -133,54 +136,50 @@ class ShardExtractor(ExtractionScheme):
 
         symbols = list(hps)[0].symbols
         generated = []
+        shard_encodings = dict()
         selected = [] if self.cmf_data.selected_points is None else self.cmf_data.selected_points
         if self.cmf_data.only_selected:
             if self.cmf_data.selected_points is None:
                 raise ValueError('No start points were provided for extraction.')
+
+            points = [
+                tuple(coord + shift for coord, shift in zip(p, self.cmf_data.shift.values()))
+                for p in selected
+            ]
+
+            # validate shards using the sampled points
+            for p in SmartTQDM(points, desc='Computing shard encodings', **sys_config.TQDM_CONFIG):
+                enc = []
+                point_dict = {sym: coord for sym, coord in zip(symbols, p)}
+                for hp in hps:
+                    res = hp.expr.subs(point_dict)
+                    if res == 0:
+                        break
+                    enc.append(1 if res > 0 else -1)
+
+                if len(enc) == len(hps):
+                    shard_encodings[tuple(enc)] = Position(point_dict)
         else:
-            generated = list(itertools.product(tuple(list(range(-2, 3))), repeat=len(symbols)))
+            hps_list = list(hps)
+            shifted_hps = [hp.apply_shift(self.cmf_data.shift) for hp in hps_list]
+            A = np.array([hp.vectors[0] for hp in shifted_hps], dtype=np.int64)
+            b = np.array([hp.vectors[1] for hp in shifted_hps], dtype=np.int64)
+            S = config.extraction.BASE_EDGE_LENGTH * 2 + 1
+            prefix_dims = max(min(int(round(math.log(os.cpu_count(), S))), os.cpu_count() - 1), 1)
 
-        points = [
-            tuple(coord + shift for coord, shift in zip(p, self.cmf_data.shift.values()))
-            for p in generated + selected
-        ]
-
-        # validate shards using the sampled points
-        shard_encodings = dict()
-        for p in SmartTQDM(points, desc='Computing shard encodings', **sys_config.TQDM_CONFIG):
-            enc = []
-            point_dict = {sym: coord for sym, coord in zip(symbols, p)}
-            for hp in hps:
-                res = hp.expr.subs(point_dict)
-                if res == 0:
-                    break
-                enc.append(1 if res > 0 else -1)
-                # sign = 0 if res == 0 else 1 if res > 0 else -1
-                # enc.append(sign)
-
-            # if 0 in enc:
-            #     # dups = self.__generate_dups(enc)
-            #     results = []
-            #     dups = [enc]
-            #
-            #     while len(dups) != 0:
-            #         enc = dups.pop()
-            #         if 0 not in enc:
-            #             results.append(enc)
-            #         else:
-            #             for i, sign in enumerate(enc):
-            #                 if sign == 0:
-            #                     temp = enc.copy()
-            #                     temp[i] = 1
-            #                     temp2 = enc.copy()
-            #                     temp2[i] = -1
-            #                     dups.extend([temp, temp2])
-            #                     break
-            #     for dup in results:
-            #         shard_encodings[tuple(dup)] = Position({sym: coord for sym, coord in zip(symbols, dup)})
-            # else:
-            if len(enc) == len(hps):
-                shard_encodings[tuple(enc)] = Position(point_dict)
+            final_results = init_points.compute_mapping(
+                self.cmf_data.cmf.dim(), S, A, b, prefix_dims
+            )
+            unique_sigs = list(final_results.keys())
+            decoded_vectors = init_points.decode_signatures(unique_sigs, len(hps))
+            for i, sig in enumerate(unique_sigs):
+                sign_vector = decoded_vectors[i]
+                if 0 in sign_vector:
+                    continue
+                actual_point = final_results[sig]
+                shard_encodings[tuple(sign_vector)] = Position(
+                    {sym: int(v) + self.cmf_data.shift[sym] for sym, v in zip(symbols, actual_point)}
+                )
 
         Logger(
             f'In CMF no. {call_number}: found {len(hps)} hyperplanes and {len(shard_encodings)} shards ',
@@ -193,27 +192,6 @@ class ShardExtractor(ExtractionScheme):
             A, b, syms = Shard.generate_matrices(list(hps), enc)
             shards.append(Shard(self.cmf_data.cmf, self.const, A, b, self.cmf_data.shift, syms, shard_encodings[enc], self.cmf_data.use_inv_t))
         return shards
-
-    @staticmethod
-    @njit
-    def __generate_dups(enc):
-        results = []
-        dups = [enc]
-
-        while len(dups) != 0:
-            enc = dups.pop()
-            if 0 not in enc:
-                results.append(enc)
-            else:
-                for i, sign in enumerate(enc):
-                    if sign == 0:
-                        temp = enc.copy()
-                        temp[i] = 1
-                        temp2 = enc.copy()
-                        temp2[i] = -1
-                        dups.extend([temp, temp2])
-                        break
-        return results
 
 
 if __name__ == '__main__':

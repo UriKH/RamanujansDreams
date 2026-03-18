@@ -31,12 +31,33 @@ class Hyperplane:
         except sp.PolynomialError:
             raise ValueError(f'Expression is not linear: {self.expr}')
 
+        # self.sym_coef_map = self.expr.as_coefficients_dict()
+        # self.free_term = self.sym_coef_map.get(1, 0)
+        # self.linear_term = self.expr - self.free_term
+        # if sp.Poly(self.expr).coeffs()[0] < 1:
+        #     self.linear_term = -self.linear_term
+        #     self.free_term = -self.free_term
+        # 1. Extract raw coefficients
+        raw_coef_map = self.expr.as_coefficients_dict()
+
+        # 2. Find LCM to scale everything to integers
+        common_denom = sp.Integer(1)
+        for val in raw_coef_map.values():
+            common_denom = sp.lcm(common_denom, sp.denom(sp.Rational(val)))
+
+        # 3. Apply the scaling
+        if common_denom != 1:
+            self.expr = sp.expand(self.expr * common_denom)
+
+        # 4. Normalize the sign (ensure positive leading coefficient)
+        # Because we scaled to integers, < 1 safely means <= 0
+        if sp.Poly(self.expr).coeffs()[0] < 1:
+            self.expr = -self.expr
+
+        # 5. Lock in the synchronized, purely integer state
         self.sym_coef_map = self.expr.as_coefficients_dict()
         self.free_term = self.sym_coef_map.get(1, 0)
         self.linear_term = self.expr - self.free_term
-        if sp.Poly(self.expr).coeffs()[0] < 1:
-            self.linear_term = -self.linear_term
-            self.free_term = -self.free_term
 
     def is_in_integer_shift(self) -> bool:
         """
@@ -48,15 +69,8 @@ class Hyperplane:
         if all(c == 0 for c in coeffs):
             return self.free_term == 0
 
-        all_terms = coeffs + [self.free_term]
-        common_denom = sp.Integer(1)
-        for val in all_terms:
-            common_denom = sp.lcm(common_denom, sp.denom(val))
-
-        int_coeffs = [sp.Integer(c * common_denom) for c in coeffs]
-        int_free_term = sp.Integer(self.free_term * common_denom)
-        coeffs_gcd = sp.gcd(int_coeffs)
-        return int_free_term % coeffs_gcd == 0
+        coeffs_gcd = sp.gcd(coeffs)
+        return self.free_term % coeffs_gcd == 0
 
     def apply_shift(self, shift: Position) -> 'Hyperplane':
         """

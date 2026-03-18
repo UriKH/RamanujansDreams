@@ -3,7 +3,7 @@ import numpy as np
 
 from dreamer.utils.logger import Logger
 from dreamer.utils.types import *
-from .numba_utils import *
+from dreamer.extraction.utils.fast_gcd import *
 
 
 @njit(cache=True)
