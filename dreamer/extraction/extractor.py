@@ -18,163 +18,10 @@ from dreamer.utils.mp_manager import create_pool
 import os.path
 import sympy as sp
 from collections import defaultdict
-from numba import njit, types
 from numba.typed import Dict
-import numpy as np
-import multiprocessing as mp
-import itertools
 import math
-
-
 import numpy as np
-from numba import njit, types
-from numba.typed import Dict
-
-
-def generate_numba_worker(M):
-    num_chunks = (M + 63) // 64
-    tuple_elements = ", ".join([f"sig_chunks[{i}]" for i in range(num_chunks)])
-    tuple_str = f"({tuple_elements},)" if num_chunks == 1 else f"({tuple_elements})"
-
-    code = f"""
-def dynamic_compute_block(fixed_prefix, D, S, A, b):
-    M_val = A.shape[0]
-    K = len(fixed_prefix)
-    rem_D = D - K  
-
-    state = np.zeros(D, dtype=np.int32)
-    for i in range(K):
-        state[i] = fixed_prefix[i]
-
-    offset = S // 2
-
-    unique_mapping = Dict.empty(
-        key_type=tuple_type,
-        value_type=int_array_type  # Ensure we save int arrays
-    )
-
-    BLOCK_SIZE = 1024
-    block = np.zeros((BLOCK_SIZE, D), dtype=np.int64) # Pure integer block!
-    total_points = np.int64(S) ** np.int64(rem_D) 
-    points_generated = np.int64(0)
-
-    while points_generated < total_points:
-        current_batch_size = 0
-
-        while current_batch_size < BLOCK_SIZE and points_generated < total_points:
-            for j in range(D):
-                block[current_batch_size, j] = state[j] - offset
-            current_batch_size += 1
-            points_generated += 1
-            for d in range(D - 1, K - 1, -1):
-                state[d] += 1
-                if state[d] < S: break 
-                else: state[d] = 0 
-
-        for i in range(current_batch_size):
-            is_on_hyperplane = False
-            sig_chunks = np.zeros({num_chunks}, dtype=np.int64)
-
-            for j in range(M_val):
-                val = b[j]
-                for d in range(D):
-                    val += A[j, d] * block[i, d]
-
-                # Pure integer math check - mathematically flawless
-                if val == 0:
-                    is_on_hyperplane = True
-                    break
-
-                if val > 0:
-                    chunk_idx = j // 64
-                    bit_idx = np.int64(j % 64)
-                    sig_chunks[chunk_idx] |= (np.int64(1) << bit_idx)
-
-            if is_on_hyperplane:
-                continue
-
-            sig_tuple = {tuple_str}
-
-            if sig_tuple not in unique_mapping:
-                unique_mapping[sig_tuple] = block[i, :].copy()
-
-    return unique_mapping
-"""
-    local_env = {
-        'np': np,
-        'Dict': Dict,
-        'tuple_type': types.UniTuple(types.int64, num_chunks),
-        'int_array_type': types.int64[:] # Use strictly int64 for the saved points
-    }
-    exec(code, local_env)
-    return njit(local_env['dynamic_compute_block'])
-
-
-def decode_signatures(unique_tuples, M):
-    N = len(unique_tuples)
-    if N == 0:
-        return np.empty((0, M), dtype=np.int8)
-
-    chunks_array = np.array(list(unique_tuples), dtype=np.int64)
-    if chunks_array.ndim == 1:
-        chunks_array = chunks_array.reshape(-1, 1)
-
-    bits = np.zeros((N, M), dtype=np.int8)
-    for j in range(M):
-        chunk_idx = j // 64
-        bit_idx = np.int64(j % 64)
-        bit_val = (chunks_array[:, chunk_idx] >> bit_idx) & np.int64(1)
-        bits[:, j] = bit_val
-
-    return (bits * 2) - 1
-
-_worker_cache = {}
-
-
-def worker_wrapper(fixed_prefix, D, S, A, b):
-    M = A.shape[0]
-
-    # If this worker core hasn't compiled the function for this M yet, do it now
-    if M not in _worker_cache:
-        _worker_cache[M] = generate_numba_worker(M)
-
-    compiled_func = _worker_cache[M]
-    numba_dict = compiled_func(fixed_prefix, D, S, A, b)
-
-    # Safely convert to a Python dictionary for transport back to the master process
-    standard_dict = {}
-    for key_tuple, point_array in numba_dict.items():
-        standard_dict[key_tuple] = np.array(point_array)
-
-    return standard_dict
-
-
-def parallel_hypercube_run_with_points(D, S, A, b, prefix_dims=2):
-    prefix_dims = min(prefix_dims, D)
-    coords = range(S)
-    prefixes = list(itertools.product(coords, repeat=prefix_dims))
-
-    tasks = []
-    for prefix in prefixes:
-        prefix_arr = np.array(prefix, dtype=np.int32)
-        tasks.append((prefix_arr, D, S, A, b))
-
-    # Global dictionary to hold the final results
-    global_mapping = {}
-
-    num_cores = mp.cpu_count()
-    Logger(f"Launching {len(tasks)} jobs across {num_cores} cores...").log()
-
-    with mp.Pool(num_cores) as pool:
-        results = pool.starmap(worker_wrapper, tasks)
-
-        # Merge dictionaries from all workers
-        for local_mapping in results:
-            for sig, point in local_mapping.items():
-                if sig not in global_mapping:
-                    global_mapping[sig] = point
-
-    return global_mapping
+from .utils import initial_points as init_points
 
 
 class ShardExtractorMod(ExtractionModScheme):
@@ -319,9 +166,12 @@ class ShardExtractor(ExtractionScheme):
             b = np.array([hp.vectors[1] for hp in shifted_hps], dtype=np.int64)
             S = config.extraction.BASE_EDGE_LENGTH * 2 + 1
             prefix_dims = max(min(int(round(math.log(os.cpu_count(), S))), os.cpu_count() - 1), 1)
-            final_results = parallel_hypercube_run_with_points(self.cmf_data.cmf.dim(), S, A, b, prefix_dims)
+
+            final_results = init_points.compute_mapping(
+                self.cmf_data.cmf.dim(), S, A, b, prefix_dims
+            )
             unique_sigs = list(final_results.keys())
-            decoded_vectors = decode_signatures(unique_sigs, len(hps))
+            decoded_vectors = init_points.decode_signatures(unique_sigs, len(hps))
             for i, sig in enumerate(unique_sigs):
                 sign_vector = decoded_vectors[i]
                 if 0 in sign_vector:

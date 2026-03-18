@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.special import gamma, zeta
 
-from .numba_utils import *
+from dreamer.extraction.utils.fast_gcd import *
 
 
 @njit(cache=True)
