@@ -1,31 +1,26 @@
-### Add a search module
+### How can I add a new Search Module?
 
 **What do I need to do?**
-1. Create the new search method inherits from SearchMethod
-2. Create a search module which inherits from SearcherModScheme
+1. Create a new class which inherits from `SearchMethod` similar to the one in `examples/search_method.py`.
+2. Create a new class which inherits from `SearcherModScheme` similar to the one in `examples/search_module.py` .
 
 **How?**
-- In the search method implement the internal logic and how the search works.
-- In the search module implement the external interface - how to use the search method? Where and how to export data? etc.
+- In the search **method** implement the internal logic and how the search algorithm works.
+- In the search **module** implement the external interface - how to use your algorithm in the context of the system? (e.g., Where and how to export data?)
 
-**NOTE:** If implementation is not local and you want to contribute please put the `MySearchMethod` and `MySearchMod` in different files and place `my_search_method.py` in `dreamer/search/methods/<your method's name>` (with your extra files if any) and `my_search_mod.py` in `dreamer/search_stage/searchers/<your searcher's name>` (with your extra files if any)
+**Note:** In case your implementation is not intended to be a local one and you want to contribute to the system, please put `MySearchMethod` and `MySearchMod` in different files and place `my_search_method.py` in `dreamer/search/methods/<your method's name>` and `my_search_mod.py` in `dreamer/search_stage/searchers/<your searcher's name>`.
 
-**Code template:** See `examples/search.py`
-
-### Add an analysis module
+### How can I add a new Analysis Module?
 
 **What do I need to do?**
-1. Create the new analyzer inherits from AnalyzerScheme
-2. Create a analysis module which inherits from AnalyzerModScheme
+1. Create a new class which inherits from `AnalyzerScheme` similar to the one in `examples/analyzer.py`.
+2. Create a new class which inherits from `AnalyzerModScheme` similar to the one in `examples/analysis_module.py`.
 
 **How?**
-- In the analyzer implement the internal logic and how the analyzer works. 
+- In the analyzer implement the internal logic and how the analysis algorithm works. 
 - In the analysis module implement the external interface - how to use the analyzer? How to prioritize searchables? etc.
 
-**NOTE:** If implementation is not local and you want to contribute please put the `MyAnalyzer` and `MyAnalysisMod` in different files and place `my_analyzer.py` and `my_analysis_mod.py` in `dreamer/analysis/analyzers/<your analyzer's name>` (with your extra files if any).
-
-**Code template:** See `examples/analysis.py`
-
+**Note:** In case your implementation is not intended to be a local one and you want to contribute to the system, please put `MyAnalyzer` and `MyAnalysisMod` in different files and place `my_analyzer.py` and `my_analysis_mod.py` in `dreamer/analysis/analyzers/<your analyzer's name>` (with your extra files if any).
 
 
 ## Developer Guide (WIP)
