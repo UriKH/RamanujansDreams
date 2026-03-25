@@ -100,7 +100,11 @@ class ShardExtractor(ExtractionScheme):
         hps = set()
         symbols = list(self.cmf_data.cmf.matrices.keys())
         for s in symbols:
-            zeros = sp.solve(pFq.determinant(self.cmf_data.cmf.p, self.cmf_data.cmf.q, self.cmf_data.cmf.z, s))
+            if isinstance(self.cmf_data.cmf, pFq):
+                det = pFq.determinant(self.cmf_data.cmf.p, self.cmf_data.cmf.q, self.cmf_data.cmf.z, s)
+            else:
+                det = self.cmf_data.cmf.matrices[s].det()
+            zeros = sp.solve(det)
             zeros = [Hyperplane(lhs - rhs, symbols) for solution in zeros for lhs, rhs in solution.items()]
             hps.update(set(zeros))
 

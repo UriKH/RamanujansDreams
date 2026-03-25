@@ -113,7 +113,8 @@ class Searchable(ABC):
                     f'Note that LIReC failed with error: "{e}"\n'
                     f'This could be a result of an issue with the configurations of:'
                     f' "{traj_len_compute}" or "{number_of_trajectories}" '
-                    f'\n NOTE: (if you are confidant, ignore this message as this error could be just a bad trajectory :) )',
+                    f'\nNOTE: (if you are confidant, ignore this message as this error could be just a bad trajectory :) )'
+                    f'\n TCOL: {t1_col[1:]}',
                     Logger.Levels.warning
                 ).log(msg_prefix='\n')
                 return None, None, None

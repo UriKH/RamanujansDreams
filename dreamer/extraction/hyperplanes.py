@@ -14,7 +14,7 @@ class Hyperplane:
     The expression might miss some symbols as the space the hyperplane lives in consists of more axes than defined.
     """
     expr: sp.Expr
-    symbols: Optional[List[sp.Basic]] = None
+    symbols: Optional[List[sp.Symbol]] = None
 
     def __post_init__(self):
         if self.symbols is None:

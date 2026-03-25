@@ -2,6 +2,8 @@ from abc import ABC, abstractmethod
 from dreamer.loading.config import *
 from dreamer.utils.constants.constant import Constant
 from dreamer.utils.types import *
+from dreamer.configs import config
+import json
 
 
 class Formatter(ABC):
@@ -11,8 +13,17 @@ class Formatter(ABC):
     """
     registry: Dict[str, Type['Formatter']] = dict()
 
-    def __init__(self, const: str | Constant, use_inv_t: bool):
+    def __init__(self, const: str | Constant, shifts: Optional[list] = None,
+                 selected_start_points: Optional[List[Tuple[Union[int, sp.Rational], ...]]] = None,
+                 only_selected: bool = False,
+                 use_inv_t: bool = None):
+        if use_inv_t is None:
+            use_inv_t = config.search.DEFAULT_USES_INV_T
+
         self.const = const.name if isinstance(const, Constant) else const
+        self.shifts = shifts
+        self.selected_start_points = selected_start_points
+        self.only_selected = only_selected
         self.use_inv_t = use_inv_t
 
     def __init_subclass__(cls, **kwargs):
@@ -21,15 +32,18 @@ class Formatter(ABC):
 
     @abstractmethod
     def __repr__(self):
-        raise NotImplementedError
+        return json.dumps(self._to_json_obj())
 
     @abstractmethod
     def __str__(self):
-        raise NotImplementedError
+        return f'<{self.__class__.__name__}: {self.__repr__()}>'
 
     @abstractmethod
     def __hash__(self):
-        raise NotImplementedError
+        return hash((
+            self.const, tuple(self.shifts), frozenset(self.selected_start_points),
+            self.only_selected, self.use_inv_t
+        ))
 
     @abstractmethod
     def to_cmf(self) -> ShiftCMF:
@@ -40,12 +54,39 @@ class Formatter(ABC):
         raise NotImplementedError
 
     def _to_json_obj(self) -> dict:
-        return {'const': self.const}
+        # Prepare shifts
+        shifts = self.shifts
+        if shifts:
+            shifts = [str(shift) if isinstance(shift, sp.Expr) else shift for shift in self.shifts]
+
+        # Prepare start points
+        points = self.selected_start_points
+        if points:
+            points = [[v if isinstance(v, int) else str(v) for v in p] for p in self.selected_start_points]
+
+        return {
+            'const': self.const.name if isinstance(self.const, Constant) else self.const,
+            'use_inv_t': self.use_inv_t,
+            'shifts': shifts,
+            'selected_start_points': points,
+            'only_selected': self.only_selected
+        }
 
     @classmethod
     @abstractmethod
     def _from_json_obj(cls, obj: dict | list) -> object:
         raise NotImplementedError
+
+    @staticmethod
+    def _shift_from_json(data):
+        return [sp.sympify(shift) if isinstance(shift, str) else shift for shift in data]
+
+    @staticmethod
+    def _selected_start_points_from_json(data):
+        points = []
+        for point_list in data:
+            points.append(tuple(sp.sympify(v) if isinstance(v, str) else v for v in point_list))
+        return points
 
     @classmethod
     def fetch_from_registry(cls, name: str) -> Type['Formatter']:

@@ -1,16 +1,17 @@
 from dreamer import System, config
 from dreamer import analysis, search, extraction
 from dreamer.loading import *
-from dreamer import zeta
+from dreamer import zeta, log, pi
+import sympy as sp
 
 
 # Because of pickling format we need to define these functions here
 def trajectory_compute_func(d):
-    return max(10 ** (d - 2) / 2, 10)
+    return max(10 ** (d-1), 10)
 
 
 def trajectory_compute_func_analysis(d):
-    return max(10 ** (d-4), 10)
+    return max(10 ** (d-1), 10)
 
 
 if __name__ == '__main__':
@@ -39,13 +40,20 @@ if __name__ == '__main__':
         }
     )
 
-    p = 4
-    q = 3
-    z = 1
+    p = 2
+    q = 1
+    z = -1
+
+    # System(
+    #        if_srcs=[pFq(zeta(2), p, q, z, selected_start_points=[(9, 8, 7, -6, 2, 3, 4)], only_selected=True)],
+    #    extractor=extraction.extractor.ShardExtractorMod,
+    #    analyzers=[analysis.AnalyzerModV1],
+    #    searcher=search.SearcherModV1
+    # ).run(constants=[zeta(2)])
 
     System(
-        if_srcs=[pFq_formatter(zeta(2), p, q, z, selected_start_points=[(9, 8, 7, -6, 2, 3, 4)], only_selected=True)],
+        if_srcs=[pFq(log(2), p, q, z)],
         extractor=extraction.extractor.ShardExtractorMod,
         analyzers=[analysis.AnalyzerModV1],
         searcher=search.SearcherModV1
-    ).run(constants=[zeta(2)])
+    ).run(constants=[log(2)])

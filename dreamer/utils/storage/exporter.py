@@ -73,7 +73,7 @@ class Exporter:
             root: str,
             exists_ok: bool = True,
             clean_exists: bool = False,
-            fmt: Formats = Formats.PICKLE
+            fmt: Formats = Formats.PICKLE,
     ) -> Generator[Callable[[Any], None], None, None]:
         """
         Context manager for exporting a stream of data chunks.
@@ -97,16 +97,15 @@ class Exporter:
 
         chunk_id = 0
 
-        def write_chunk(data: Any) -> None:
+        def write_chunk(data: Any, path_inject: Optional[str] = None) -> None:
             nonlocal chunk_id
-            # Use zero-padding (e.g., chunk_0000000001) to ensure
-            # file system sorting matches logical order.
+
             filename = f"chunk_{chunk_id:010d}"
 
             cls.export(
-                root=root,
+                root=root if not path_inject else os.path.join(root, path_inject),
                 f_name=filename,
-                exists_ok=True,  # We control the names, so we assume we are safe to write
+                exists_ok=True,
                 fmt=fmt,
                 data=data
             )

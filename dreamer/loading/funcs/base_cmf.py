@@ -1,53 +1,47 @@
 import json
-from ramanujantools.cmf import pFq as rt_pFq
+
+from ramanujantools import Matrix
 from dreamer.utils.constants.constant import Constant
 from dreamer.loading.funcs.formatter import Formatter
 from dreamer.utils.types import *
-from dreamer.configs import config
 
 
-class pFq(Formatter):
+class BaseCMF(Formatter):
     def __init__(self,
-                 const: str | Constant, p: int, q: int, z: sp.Expr | int, shifts: Optional[list] = None,
+                 const: str | Constant, cmf: CMF, shifts: Optional[list] = None,
                  selected_start_points: Optional[List[Tuple[Union[int, sp.Rational], ...]]] = None,
                  only_selected: bool = False,
                  use_inv_t: bool = None
                  ):
         """
-        Represents a pFq and its CMF + allows conversion to and from JSON.
-        :var const: The constant related to this pFq function
-        :var p: The p value of the pFq.
-        :var q: The q value of the pFq.
-        :var z: The z value of the pFq.
+        Represents a general CMF and allows conversion to and from JSON.
+        :var const: The constant related to this CMF
+        :var cmf: The CMF.
         :var shifts: The shifts in starting point in the CMF where a sp.Rational indicates a shift.
         While 0 indicates no shift (None if not doesn't matter).
         :param selected_start_points: Optional list of start points to extract shards from.
         :param only_selected: If True, only extract shards from the selected start points.
         """
-        self.p = p
-        self.q = q
-        self.z = z
-        self.shifts = shifts
+        super().__init__(const, shifts, selected_start_points, only_selected, use_inv_t)
+
+        self.cmf = cmf
         if self.shifts is None:
-            self.shifts = [0] * (self.p + self.q)
+            self.shifts = [0] * self.cmf.dim()
 
-        super().__init__(const, self.shifts, selected_start_points, only_selected, use_inv_t)
-
-        if self.p <= 0 or self.q <= 0:
-            raise ValueError("p and q should be positive integers")
         if not isinstance(self.shifts, list) and not isinstance(self.shifts, Position):
             raise ValueError("Shifts should be a list or Position")
-        if self.p + self.q != len(self.shifts):
-            raise ValueError("Shifts should be of length p + q")
 
     @classmethod
-    def _from_json_obj(cls, data: dict | list) -> "pFq":
+    def _from_json_obj(cls, data: dict | list) -> "BaseCMF":
         """
-        Converts a JSON string to a pFq.
+        Converts a JSON string to a BaseCMF.
         :param data: The JSON string representation of the pFq (only attributes).
-        :return: A pFq object.
+        :return: A BaseCMF object.
         """
-        data['z'] = sp.sympify(data['z']) if isinstance(data['z'], str) else data['z']
+        data['cmf'] = CMF(
+            matrices={sp.sympify(k): Matrix(sp.sympify(v)) for k, v in data['cmf'].items()},
+            validate=False
+        )
         data['shifts'] = cls._shift_from_json(data['shifts'])
         data['selected_start_points'] = cls._selected_start_points_from_json(data['selected_start_points'])
         return cls(**data)
@@ -59,19 +53,16 @@ class pFq(Formatter):
         """
         return {
             **super()._to_json_obj(),
-            "p": self.p,
-            "q": self.q,
-            "z": str(self.z) if isinstance(self.z, sp.Expr) else self.z
+            **{sp.srepr(sym): sp.srepr(matrix) for sym, matrix in self.cmf.matrices.items()},
         }
 
     def to_cmf(self) -> ShiftCMF:
         """
-        Converts the pFq to a CMF.
-        :return: A tuple (CMF, shifts)
+        Converts the CMF to a Shift CMF.
+        :return: A Shift CMF object
         """
-        cmf = rt_pFq(self.p, self.q, self.z)
-        self.shifts = Position({k: v for k, v in zip(cmf.matrices.keys(), self.shifts)})
-        return ShiftCMF(cmf, self.shifts, self.selected_start_points, self.only_selected, self.use_inv_t)
+        self.shifts = Position({k: v for k, v in zip(self.cmf.matrices.keys(), self.shifts)})
+        return ShiftCMF(self.cmf, self.shifts, self.selected_start_points, self.only_selected, self.use_inv_t)
 
     def __repr__(self):
         return json.dumps(self._to_json_obj())
@@ -80,5 +71,5 @@ class pFq(Formatter):
         return f'<{self.__class__.__name__}: {self.__repr__()}>'
 
     def __hash__(self):
-        return hash((self.p, self.q, self.z, super().__hash__()))
+        return hash((hash(self.cmf), super().__hash__()))
 

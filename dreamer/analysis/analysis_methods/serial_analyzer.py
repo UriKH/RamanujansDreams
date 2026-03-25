@@ -83,6 +83,7 @@ class Analyzer(AnalyzerScheme):
                     Logger(f'No best delta was found', Logger.Levels.warning).log()
         return managers
 
+    # TODO: add tests for this function
     def prioritize(self, managers: Dict[Searchable, DataManager], ranks: int = 3) -> Dict[Searchable, Dict[str, int]]:
         """
         Prioritizes the searchables according to how big is their delta and the CMF dimension

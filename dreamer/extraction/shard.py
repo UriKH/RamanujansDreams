@@ -24,9 +24,9 @@ class Shard(Searchable):
         """
         :param cmf: The CMF this shard is a part of
         :param constant: The constant to search for in the shard
-        :param A: Matrix A defining the linear terms in the inequalities
+        :param A: Matrix A defining the linear terms in the inequalities - Ax ?= b
             (if None, then the shard will be the whole space)
-        :param b: Vector b defining the free terms in the inequalities
+        :param b: Vector b defining the free terms in the inequalities - Ax ?= b
             (if None, then the shard will be the whole space)
         :param shift: The shift in start points required
         :param symbols: Symbols used by the CMF which this shard is part of
@@ -140,7 +140,7 @@ class Shard(Searchable):
     def generate_matrices(
             hyperplanes: List[Hyperplane],
             above_below_indicator: Union[List[int], Tuple[int, ...]]
-    ) -> Tuple[np.ndarray, np.array, List[sp.Symbol]]:
+    ) -> Tuple[np.ndarray, np.ndarray, List[sp.Symbol]]:
         """
         Generate the matrix A and vector b corresponding to the given hyperplanes which represent a shard
         with a specific encoding.

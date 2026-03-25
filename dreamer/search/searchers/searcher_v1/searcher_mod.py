@@ -57,6 +57,8 @@ class SearcherModV1(SearcherModScheme):
                     find_eigen_values=search_config_local.FIND_EIGEN_VALUES,
                     trajectory_generator=search_config.NUM_TRAJECTORIES_FROM_DIM
                 )
-                write_chunk(res)
+
+                space: Searchable
+                write_chunk(res, "".join(c if c.isalnum() or c in ('-', '_') else '_' for c in repr(space.cmf)).strip('_'))
 
         return dms

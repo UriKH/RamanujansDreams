@@ -1,7 +1,8 @@
 from .databases.db_v1.db_mod import BasicDBMod, DBModScheme
 from .databases.db_v1.db import DB
 from .funcs.formatter import Formatter
-from .funcs.pFq_fmt import pFq_formatter
+from .funcs.pFq_fmt import pFq
+from .funcs.meijerG_fmt import MeijerG
 from . import errors
 from . import funcs
 
@@ -10,7 +11,8 @@ __all__ = [
     'BasicDBMod',
     'DB',
     'Formatter',
-    'pFq_formatter',
+    'pFq',
+    'MeijerG',
     'errors',
     'funcs'
 ]
