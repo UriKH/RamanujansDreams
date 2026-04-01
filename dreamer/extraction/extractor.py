@@ -83,7 +83,7 @@ class ShardExtractor(ExtractionScheme):
         :param cmf_data: CMF to extract shards from, more data for extraction and later usage
         """
         super().__init__(const, cmf_data)
-        self.pool = create_pool() if extraction_config.PARALLELIZE else None
+        # self.pool = create_pool() if extraction_config.PARALLELIZE else None
 
     @property
     def symbols(self) -> List[sp.Symbol]:

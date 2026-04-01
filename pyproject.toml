@@ -25,5 +25,6 @@ dependencies = [
     "pandas",
     "scipy",
     "pulp",
-    "LIReC @ git+https://github.com/RamanujanMachine/LIReC.git@main"
+    "LIReC @ git+https://github.com/RamanujanMachine/LIReC.git@main",
+    "fpylll"
 ]

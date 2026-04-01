@@ -15,6 +15,7 @@ from dreamer.utils.logger import Logger
 from dreamer.utils.constants.constant import Constant
 from dreamer.configs import config
 from functools import partial
+import sympy as sp
 
 sys_config = config.system
 extraction_config = config.extraction
@@ -69,7 +70,10 @@ class System:
                 const_path = os.path.join(path, safe_key)
 
                 for scmf in l:
-                    filename = "".join(c if c.isalnum() or c in ('-', '_') else '_' for c in repr(scmf.cmf)).strip('_')
+                    if scmf.cmf.__class__ == CMF:
+                        filename = f'generated_cmf_hashed_{hash(scmf.cmf)}'
+                    else:
+                        filename = "".join(c if c.isalnum() or c in ('-', '_') else '_' for c in repr(scmf.cmf)).strip('_')
                     Exporter.export(
                         root=const_path, f_name=filename, exists_ok=True, clean_exists=True,
                         data=[ShiftCMF(scmf.cmf, scmf.shift, True)], fmt=Formats.PICKLE
@@ -82,7 +86,11 @@ class System:
         for constant, funcs in cmf_data.items():
             functions = '\n'
             for i, func in enumerate(funcs):
-                functions += f'{i+1}. CMF: {repr(func.cmf)} with offset {tuple(func.shift.values())}\n'
+                if func.cmf.__class__ == CMF:
+                    pretty_mats = '    '.join(f'{sp.pretty(sym)}:\n{sp.pretty(mat)}' for sym, mat in func.cmf.matrices.items())
+                    functions += f'{i+1}. CMF: {pretty_mats}\n with offset {tuple(func.shift.values())}\n'
+                else:
+                    functions += f'{i+1}. CMF: {repr(func.cmf)} with offset {tuple(func.shift.values())}\n'
             Logger(
                 f'Searching for {constant.name} using inspiration functions: {functions}', Logger.Levels.info
             ).log(msg_prefix='\n')
@@ -252,6 +260,7 @@ class System:
             best_sv = None
             dir_path = os.path.join(sys_config.EXPORT_SEARCH_RESULTS, const.name)
 
+            # TODO: we first need to read inside the directories
             stream_gen = Importer.import_stream(dir_path)
             for dm in stream_gen:
                 delta, sv = dm.best_delta

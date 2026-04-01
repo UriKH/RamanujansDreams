@@ -58,7 +58,7 @@ class SerialSearcher(SearchMethod):
             starts = [starts]
 
         trajectories = self.space.sample_trajectories(
-            trajectory_generator(self.space.dim),
+            trajectory_generator,
             strict=False
         )
 

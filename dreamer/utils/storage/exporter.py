@@ -74,7 +74,7 @@ class Exporter:
             exists_ok: bool = True,
             clean_exists: bool = False,
             fmt: Formats = Formats.PICKLE,
-    ) -> Generator[Callable[[Any], None], None, None]:
+    ) -> Generator[Callable[[Any, Optional[str]], None], None, None]:
         """
         Context manager for exporting a stream of data chunks.
         Yields a function that accepts data and writes it to a new file in the sequence.

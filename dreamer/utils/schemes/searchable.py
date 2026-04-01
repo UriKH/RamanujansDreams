@@ -66,8 +66,7 @@ class Searchable(ABC):
                 if self.use_inv_t:
                     walked = walked.inv().T
         except Exception as e:
-            Logger(f'Unexpected exception when trying to walk, ignoring trajectory', Logger.Levels.warning).log(msg_prefix='\n')
-            Logger(f'{e}', Logger.Levels.warning).log()
+            Logger(f'Unexpected exception "{e}" when trying to walk, ignoring trajectory', Logger.Levels.warning).log()
             return None, None, None
         t1_col = (walked / walked[0, 0]).col(0)
 
@@ -104,19 +103,26 @@ class Searchable(ABC):
                 with Logger.simple_timer('LIReC identify'):
                     res = db.identify([pi_300] + t1_col[1:])
             except Exception as e:
+                Logger(
+                    f'LIReC failed with: "{e}"\n'
+                    f'walk matrix column: {t1_col}',
+                    Logger.Levels.inform
+                ).log()
+
+
                 # LIReC might fail for some reason like tolerance or something else.
                 # This is not expected to occur but could happen nonetheless and should be reported to the user.
                 # User should probably change the "depth from trajectory"
                 traj_len_compute = f'{search_config.DEPTH_FROM_TRAJECTORY_LEN=}'.split('=')[0]
                 number_of_trajectories = f'{search_config.NUM_TRAJECTORIES_FROM_DIM=}'.split('=')[0]
-                Logger(
-                    f'Note that LIReC failed with error: "{e}"\n'
-                    f'This could be a result of an issue with the configurations of:'
-                    f' "{traj_len_compute}" or "{number_of_trajectories}" '
-                    f'\nNOTE: (if you are confidant, ignore this message as this error could be just a bad trajectory :) )'
-                    f'\n TCOL: {t1_col[1:]}',
-                    Logger.Levels.warning
-                ).log(msg_prefix='\n')
+                # Logger(
+                #     f'Note that LIReC failed with error: "{e}"\n'
+                #     f'This could be a result of an issue with the configurations of:'
+                #     f' "{traj_len_compute}" or "{number_of_trajectories}" '
+                #     f'\nNOTE: (if you are confidant, ignore this message as this error could be just a bad trajectory :) )'
+                #     f'\n TCOL: {t1_col[1:]}',
+                #     Logger.Levels.warning
+                # ).log(msg_prefix='\n')
                 return None, None, None
 
             # if LIReC failed to identify the constant
@@ -210,8 +216,17 @@ class Searchable(ABC):
                 trajectory=traj,
                 start=start
             )
+
+            import sympy as sp
+            if hasattr(traj_m, 'applyfunc'):
+                traj_m = traj_m.applyfunc(sp.cancel)
+            elif hasattr(traj_m, 'matrix'):  # If traj_m wraps a sympy matrix
+                traj_m.matrix = traj_m.matrix.applyfunc(sp.cancel)
         except Exception as e:
-            Logger(f'error while computing trajectory matrix for start={start}, trajectory={traj}: {e}', Logger.Levels.warning).log(msg_prefix='\n')
+            Logger(
+                f'error while computing trajectory matrix for start={start}, trajectory={traj}: {e}\n'
+                f'This was not expected to happen', Logger.Levels.inform
+            ).log(msg_prefix='\n')
             return sd
 
         if find_limit:
@@ -292,11 +307,12 @@ class Searchable(ABC):
         """
         raise NotImplementedError()
 
+    # TODO: remove strict option
     @abstractmethod
-    def sample_trajectories(self, n_samples: int, *, strict: Optional[bool] = False) -> Set[Position]:
+    def sample_trajectories(self, compute_n_samples: Callable[[int], int], *, strict: Optional[bool] = False) -> Set[Position]:
         """
         Sample trajectories from the searchable.
-        :param n_samples: Number of trajectories in searchable or number of samples to generate (depends on 'strict').
+        :param compute_n_samples: Number of trajectories in searchable or number of samples to generate as a funciton of the dimension.
         :param strict: If true, sample exactly n_samples trajectories from the searchable,
             else sample n_samples * fraction.
         :return: A set of sampled trajectories

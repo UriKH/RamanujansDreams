@@ -59,6 +59,10 @@ class SearcherModV1(SearcherModScheme):
                 )
 
                 space: Searchable
-                write_chunk(res, "".join(c if c.isalnum() or c in ('-', '_') else '_' for c in repr(space.cmf)).strip('_'))
+                if space.cmf.__class__ == CMF:
+                    filename = f'generated_cmf_hashed_{hash(space.cmf)}'
+                else:
+                    filename = "".join(c if c.isalnum() or c in ('-', '_') else '_' for c in repr(space.cmf)).strip('_')
+                write_chunk(res, filename)
 
         return dms

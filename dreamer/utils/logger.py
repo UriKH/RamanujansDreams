@@ -1,4 +1,5 @@
 import functools
+import traceback
 import time
 import inspect
 from enum import Enum, auto
@@ -86,10 +87,12 @@ class Logger:
                 msg = f'{Logger.Colors.red}{msg_prefix}[ERROR] {self.msg}'
                 if in_function:
                     msg += f' in {self.calling_function_name}'
+                self.print_func(f'Traceback: \n{traceback.format_exc()}')
                 self.print_func(msg, end=self.end)
             case Logger.Levels.fatal:      # fatal error - red
                 self.print_func(f'{Logger.Colors.red}{msg_prefix}[ERROR] {self.msg} in {self.calling_function_name} \n\t'
                       f'-> exiting', end=self.end)
+                self.print_func(f'Traceback: \n{traceback.format_exc()}')
                 try:
                     __IPYTHON__
                     raise Exception('Stopping...')

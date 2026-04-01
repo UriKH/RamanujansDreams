@@ -72,7 +72,7 @@ def filter_symmetrical_cones(mapping, p, q, shift):
 # ------------------------------------------------------------
 #   Compute shard encoding and initial point pairs
 # ------------------------------------------------------------
-
+# TODO: add prange??
 def __generate_numba_worker(M):
     """
     Creates the appropriate numba worker for initial point generation

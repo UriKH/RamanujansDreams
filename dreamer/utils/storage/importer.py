@@ -2,6 +2,7 @@ import json
 import os
 import pickle as pkl
 from .formats import *
+from pathlib import Path
 
 
 class Importer:
@@ -47,5 +48,10 @@ class Importer:
         if not os.path.isdir(path):
             raise NotADirectoryError(f"{path} is not a directory")
 
-        for f in os.listdir(path):
-            yield cls.imprt(os.path.join(path, f))
+        path = Path(path)
+        for file in path.rglob('*'):
+            if file.is_file():
+                yield cls.imprt(str(file))
+
+        # for f in os.listdir(path):
+        #     yield cls.imprt(os.path.join(path, f))
