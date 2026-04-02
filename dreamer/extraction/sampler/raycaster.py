@@ -67,10 +67,9 @@ def _raycast_kernel_parallel(d_orig, d_flat, Z_int, B, continuous_rays, R_max, t
                         harvest_buffer[base_idx + hits] = v_real
                         hits += 1
 
-                        if hits >= max_per_ray: break
-
+                        if hits >= max_per_ray:
+                            break
             t += t_step
-
         ray_counts[r_idx] = hits # Lock in this thread's count
 
     return harvest_buffer, ray_counts
@@ -177,22 +176,13 @@ def _generate_guide_rays_mcmc_kernel(d_flat, B, start_pos, target_rays, mix_step
 
 @njit(parallel=True)
 def _generate_guide_rays_mhs_kernel(d_flat, B, start_pos, target_rays, mix_steps=200):
-    """
-    Sampler based on Metropolis-Hastings-Surface walker
-    :param d_flat:
-    :param B:
-    :param start_pos:
-    :param target_rays:
-    :param mix_steps:
-    :return:
-    """
     rays = np.zeros((target_rays, d_flat), dtype=np.float64)
     m = len(B)
     num_chains = 16
     rays_per_chain = (target_rays // num_chains) + 1
 
     for chain_idx in prange(num_chains):
-        # 1. Initialize walker exactly on the sphere surface
+        # Initialize walker exactly on the sphere surface
         pos = start_pos.copy()
         new_pos = np.zeros(d_flat, dtype=np.float64)
 
@@ -207,14 +197,14 @@ def _generate_guide_rays_mhs_kernel(d_flat, B, start_pos, target_rays, mix_steps
         ray_count = 0
 
         for step_idx in range(total_steps):
-            # 2. Adaptive Multi-Scale Jump (Crucial for Dimension Agnosticism)
+            # Adaptive Multi-Scale Jump
             rand_val = np.random.rand()
             if rand_val < 0.2: sigma = 0.5      # Big jump (Sweeps wide 2D cones)
             elif rand_val < 0.5: sigma = 0.1    # Medium jump
             elif rand_val < 0.8: sigma = 0.01   # Small jump (Navigates 15D Needles)
             else: sigma = 0.001                 # Micro jump (Survives 15D Pancakes)
 
-            # 3. Propose a new step on the surface of the sphere
+            # Propose a new step on the surface of the sphere
             norm_new = 0.0
             for k in range(d_flat):
                 new_pos[k] = pos[k] + sigma * np.random.randn()
@@ -223,7 +213,7 @@ def _generate_guide_rays_mhs_kernel(d_flat, B, start_pos, target_rays, mix_steps
             norm_new = np.sqrt(norm_new)
             for k in range(d_flat): new_pos[k] /= norm_new
 
-            # 4. Check boundaries (Hyperplanes)
+            # Check boundaries (Hyperplanes)
             valid = True
             for j in range(m):
                 dot_val = 0.0
@@ -232,11 +222,11 @@ def _generate_guide_rays_mhs_kernel(d_flat, B, start_pos, target_rays, mix_steps
                     valid = False
                     break
 
-            # 5. Metropolis-Hastings Rule: Accept if valid, stay in place if invalid
+            # Metropolis-Hastings Rule: Accept if valid, stay in place if invalid
             if valid:
                 for k in range(d_flat): pos[k] = new_pos[k]
 
-            # 6. Record Breadcrumb
+            # Record Breadcrumb
             if step_idx >= 1000 and (step_idx - 1000) % mix_steps == 0:
                 global_idx = chain_idx * rays_per_chain + ray_count
                 if global_idx < target_rays:
@@ -246,8 +236,14 @@ def _generate_guide_rays_mhs_kernel(d_flat, B, start_pos, target_rays, mix_steps
     return rays
 
 
-class Stage2_Raycaster:
-    def __init__(self, Z_reduced, B_reduced, d_orig, guidance_method='mcmc'):
+class Stage2Raycaster:
+    def __init__(self, Z_reduced: np.ndarray, B_reduced: np.ndarray, d_orig: int, guidance_method: str = 'mcmc'):
+        """
+        :param Z_reduced: The sample space basis matrix
+        :param B_reduced: The sample bound matrix
+        :param d_orig: The original dimensions of the sample space (before reduction)
+        :param guidance_method: The ray guidance method to use (MCMC or MHS)
+        """
         self.Z = np.array(Z_reduced, dtype=np.int64)
         self.B = np.array(B_reduced, dtype=np.float64)
         self.d_orig = d_orig
@@ -262,6 +258,10 @@ class Stage2_Raycaster:
 
     @Logger.log_exec
     def _get_chebyshev_center(self):
+        """
+        Compute the chebyshev center point inside bounds
+        :return: The chebyshev center point
+        """
         m, d = self.B.shape
         c = np.zeros(d + 1)
         c[-1] = -1.0
@@ -279,10 +279,16 @@ class Stage2_Raycaster:
         return None
 
     @Logger.log_exec
-    def _generate_continuous_guide_rays(self, target_rays, mix_steps=200):
-        """Ultra-fast parallel C-kernel generation of continuous guide rays."""
+    def _generate_continuous_guide_rays(self, target_rays: int, mix_steps: int = 200):
+        """
+        Ultra-fast parallel C-kernel generation of continuous guide rays.
+        :param target_rays: Number of the target rays
+        :param mix_steps: Number of mix steps for sampling
+        :return: The sampled points
+        """
         start_pos = self._get_chebyshev_center()
-        if start_pos is None: return None
+        if start_pos is None:
+            return None
 
         # Execute the Numba kernel
         rays = self.guidance_method(
@@ -290,8 +296,16 @@ class Stage2_Raycaster:
         )
         return rays
 
-    def harvest(self, target_rays, R_max, max_per_ray=1):
-        if self.d_flat == 0: return np.array([])
+    def harvest(self, target_rays: int, R_max: float, max_per_ray: int = 1) -> np.ndarray:
+        """
+        Harvest samples
+        :param target_rays: Number of the target rays
+        :param R_max: Radius of the hyperball which is supposed to contain the target rays
+        :param max_per_ray: Maximum points sampled by each ray
+        :return: The sampled points
+        """
+        if self.d_flat == 0:
+            return np.array([])
 
         Logger(f"Raycaster: Generating {target_rays} Continuous Guide Rays...", Logger.Levels.debug).log()
         guide_rays = self._generate_continuous_guide_rays(target_rays)
@@ -302,7 +316,6 @@ class Stage2_Raycaster:
         Logger(f"Raycaster: Sweeping lattice along Guide Rays...", Logger.Levels.debug).log()
         start_t = time.time()
 
-        # Pass max_per_ray into the Numba kernel
         raw_buffer, counts = _raycast_kernel_parallel(
             self.d_orig, self.d_flat, self.Z, self.B, guide_rays, R_max, max_per_ray=max_per_ray
         )

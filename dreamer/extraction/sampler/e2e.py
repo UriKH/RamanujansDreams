@@ -1,7 +1,7 @@
 import numpy as np
 import scipy.special as spc
-from dreamer.extraction.sampler.conditioner import Stage1_Conditioner
-from dreamer.extraction.sampler.raycaster import Stage2_Raycaster
+from dreamer.extraction.sampler.conditioner import Stage1Conditioner
+from dreamer.extraction.sampler.raycaster import Stage2Raycaster
 from dreamer.utils.logger import Logger
 from typing import Callable
 
@@ -13,8 +13,13 @@ class EndToEndSamplingEngine:
         self.d_flat = None
 
     @staticmethod
-    def _estimate_cone_fraction(B, d_flat, samples=100000):
-        """Gaussian Measure Dart Throw."""
+    def _estimate_cone_fraction(B: np.ndarray, d_flat: int, samples: int = 100_000) -> float:
+        """
+        Gaussian Measure Dart Throw.
+        :param B: Bounds matrix
+        :param d_flat: dimension of the flatland space
+        :param samples: number of samples - darts to throw.
+        """
         if len(B) == 0: return 1.0
 
         # Pure Gaussian distribution (Spherically symmetric)
@@ -31,23 +36,38 @@ class EndToEndSamplingEngine:
         return fraction
 
     @staticmethod
-    def _calculate_R_max(target_quota, fraction, d_flat):
+    def _calculate_R_max(target_quota: int, fraction: float, d_flat: int) -> float:
         """
         Calculates the theoretical radius needed to hold the quota.
+        :param target_quota: target quota of points to sample
+        :param fraction: fraction of points to sample
+        :param d_flat: dimension of the flatland space
+        :return R_max: theoretical radius of the hypersphere containing the target quota samples.
         """
-        # V_d(R) = (pi^(d/2) / Gamma(d/2 + 1)) * R^d
         numerator = target_quota * spc.gamma((d_flat / 2.0) + 1)
         denominator = fraction * (np.pi ** (d_flat / 2.0))
-
         R_max_d = numerator / denominator
         R_max = R_max_d ** (1.0 / d_flat)
         return R_max
 
     @staticmethod
-    def _verify_uniformity(rays, threshold_degrees=1.0):
+    def _verify_uniformity(rays, fraction: float, d_flat: int) -> None:
+        """
+        Check the generated rays angular uniformity.
+        :param rays: The generated rays
+        :param fraction: The fraction of space the cone takes
+        :param d_flat: The dimension of the sample space
+        """
         if len(rays) < 2: return
 
-        # Subsample to keep the matrix math lightning fast (max 2000 points)
+        # 1. Calculate the dynamic theoretical threshold
+        surface_dim = max(1.0, float(d_flat - 1))
+        safe_fraction = max(1e-12, fraction)
+        theoretical_gap = 180.0 * ((safe_fraction / len(rays)) ** (1.0 / surface_dim))
+
+        # Threshold is 50% of the mathematical ideal
+        threshold_degrees = theoretical_gap * 0.5
+
         sample_size = min(2000, len(rays))
         sample = rays[np.random.choice(len(rays), sample_size, replace=False)]
 
@@ -65,24 +85,34 @@ class EndToEndSamplingEngine:
         median_gap = np.median(min_angles)
         mean_gap = np.mean(min_angles)
 
-        if median_gap < threshold_degrees:
+        if success := (median_gap < threshold_degrees):
             Logger(f"⚠ WARNING: Severe angular clustering detected. Median NN gap: {median_gap:.2f}°", Logger.Levels.debug).log()
         else:
             Logger(f"Uniformity Check Passed: Healthy angular separation. Median NN gap: {median_gap:.2f}°", Logger.Levels.debug).log()
 
         if mean_gap < threshold_degrees:
             Logger(f"⚠ WARNING: Severe angular clustering detected. Mean NN gap: {mean_gap:.2f}°", Logger.Levels.debug).log()
+            success = False
         else:
             Logger(f"Uniformity Check Passed: Healthy angular separation. Mean NN gap: {mean_gap:.2f}°", Logger.Levels.debug).log()
 
-    def harvest(self, target_func: Callable[[int], int] | int, guidance_method: str = 'mcmc'):
+        if not success:
+            Logger(f'Could not preform uniform sampling as expect (if this issue repeats many times please report it accordingly)', Logger.Levels.warning).log()
+
+    def harvest(self, target_func: Callable[[int], int] | int, guidance_method: str = 'mcmc') -> np.ndarray:
+        """
+        Harvest samples
+        :param target_func: Target function to compute total expected quota
+        :param guidance_method: Ray sampling guidance method - MCMC or MHS
+        :return: The samples
+        """
         Logger("\n[Pipeline] Initializing Stage 1: Conditioning...", Logger.Levels.debug).log()
-        conditioner = Stage1_Conditioner(self.A_prime, max_beta=10, defect_tolerance=5.0)
+        conditioner = Stage1Conditioner(self.A_prime, max_beta=10, defect_tolerance=5.0)
 
         try:
             Z_reduced, B_reduced, _ = conditioner.process()
         except ValueError as e:
-            raise Exception(f"!X! [Pipeline] Stage 1 Failed: {e}")
+            raise Exception(f"[Pipeline] Stage 1 Failed: {e}")
             return np.array([])
 
         self.d_flat = Z_reduced.shape[1]
@@ -98,7 +128,7 @@ class EndToEndSamplingEngine:
         R_max = self._calculate_R_max(target_rays, fraction, self.d_flat)
         Logger(f"[Pipeline] Mathematical R_max needed for {target_rays} rays: {R_max:.2f}", Logger.Levels.debug).log()
         Logger("[Pipeline] Initializing Stage 2: Universal Raycaster...", Logger.Levels.debug).log()
-        sampler = Stage2_Raycaster(Z_reduced, B_reduced, self.d_orig, guidance_method)
+        sampler = Stage2Raycaster(Z_reduced, B_reduced, self.d_orig, guidance_method)
 
         # Oversample by 3x
         guide_rays_to_shoot = int(target_rays * 3)
@@ -125,14 +155,9 @@ class EndToEndSamplingEngine:
 
             if len(raw_rays) >= target_rays:
                 Logger(f"Quota exceeded ({len(raw_rays)}). Engaging Expanding Ball (Length Sort)...", Logger.Levels.debug).log()
-                # THE "EXPANDING BALL" LOGIC
                 lengths = np.linalg.norm(raw_rays, axis=1)
                 sorted_indices = np.argsort(lengths)
-
-                # Take the absolute shortest N rays
                 best_rays = raw_rays[sorted_indices][:target_rays]
-
-                # Shuffle the final array to preserve a random angular feed for your downstream process
                 np.random.shuffle(best_rays)
                 final_rays = best_rays
                 break
@@ -153,5 +178,5 @@ class EndToEndSamplingEngine:
                 Logger(f"\n   -> Momentum Expansion: Multiplying R_max by {multiplier:.3f}", Logger.Levels.debug).log()
                 current_R_max *= multiplier
 
-        self._verify_uniformity(final_rays)
+        self._verify_uniformity(final_rays, fraction, self.d_flat)
         return final_rays
