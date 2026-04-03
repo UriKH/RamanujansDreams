@@ -2,7 +2,6 @@ from dreamer import System, config
 from dreamer import analysis, search, extraction
 from dreamer.loading import *
 from dreamer import zeta, log, pi
-import sympy as sp
 
 
 # Because of pickling format we need to define these functions here
@@ -40,13 +39,8 @@ if __name__ == '__main__':
         }
     )
 
-    p = 2
-    q = 1
-    z = -1
-
-
     System(
-        if_srcs=[pFq(log(2), p, q, z)],
+        if_srcs=[pFq(log(2), 2, 1, -1)],
         extractor=extraction.extractor.ShardExtractorMod,
         analyzers=[analysis.AnalyzerModV1],
         searcher=search.SearcherModV1

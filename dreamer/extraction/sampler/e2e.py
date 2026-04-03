@@ -85,8 +85,10 @@ class EndToEndSamplingEngine:
         median_gap = np.median(min_angles)
         mean_gap = np.mean(min_angles)
 
-        if success := (median_gap < threshold_degrees):
+        success = True
+        if median_gap < threshold_degrees:
             Logger(f"⚠ WARNING: Severe angular clustering detected. Median NN gap: {median_gap:.2f}°", Logger.Levels.debug).log()
+            success = False
         else:
             Logger(f"Uniformity Check Passed: Healthy angular separation. Median NN gap: {median_gap:.2f}°", Logger.Levels.debug).log()
 
@@ -97,7 +99,7 @@ class EndToEndSamplingEngine:
             Logger(f"Uniformity Check Passed: Healthy angular separation. Mean NN gap: {mean_gap:.2f}°", Logger.Levels.debug).log()
 
         if not success:
-            Logger(f'Could not preform uniform sampling as expect (if this issue repeats many times please report it accordingly)', Logger.Levels.warning).log()
+            Logger(f"Could not preform uniform sampling as expected... (if this repeats many times please report)", Logger.Levels.warning).log()
 
     def harvest(self, target_func: Callable[[int], int] | int, guidance_method: str = 'mcmc') -> np.ndarray:
         """
@@ -106,7 +108,7 @@ class EndToEndSamplingEngine:
         :param guidance_method: Ray sampling guidance method - MCMC or MHS
         :return: The samples
         """
-        Logger("\n[Pipeline] Initializing Stage 1: Conditioning...", Logger.Levels.debug).log()
+        Logger("[Pipeline] Initializing Stage 1: Conditioning...", Logger.Levels.debug).log()
         conditioner = Stage1Conditioner(self.A_prime, max_beta=10, defect_tolerance=5.0)
 
         try:

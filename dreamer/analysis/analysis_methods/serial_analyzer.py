@@ -41,6 +41,8 @@ class Analyzer(AnalyzerScheme):
             if analysis_config.SHOW_SEARCHABLE:
                 Logger(f'Shard: \n{shard}', Logger.Levels.info).log()
 
+            Logger(f'Shard description (Ax < b) \nA:\n{shard.A}\nb:\n{shard.b}\n', Logger.Levels.debug).log()
+
             searcher = SerialSearcher(shard, self.const, use_LIReC=analysis_config.USE_LIReC)
             dm = searcher.search(
                 start,

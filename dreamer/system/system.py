@@ -55,6 +55,12 @@ class System:
         Run the system given the constants to search for.
         :param constants: if None, search for constants defined in the configuration file in 'configs.database.py'.
         """
+        char = '='
+        total = 150
+        Logger(char * total, Logger.Levels.debug).log()
+        Logger(Logger.buffer_print(total, 'NEW RUN', char), Logger.Levels.debug).log()
+        Logger(char * total, Logger.Levels.debug).log()
+
         constants = self.__validate_constants(constants)
 
         # ======================================================

@@ -124,7 +124,7 @@ class Logger:
     def buffer_print(total: int, text: str, char: str):
         txt_len = len(text) + 2
         t = int((total - txt_len) / 2)
-        if txt_len + 2 * t != 150:
+        if txt_len + 2 * t != total:
             return f'{char * t} {text} {char * (t + 1)}'
         return f'{char * t} {text} {char * t}'
 
