@@ -24,13 +24,19 @@ class SmartTQDM(tqdm):
         self._last_logged_n = 0
 
     def update(self, n=1):
-        """Overrides update to force a flush every 10%."""
+        """
+        Overrides update to force a flush every 10%.
+        """
         displayed = super().update(n)
 
-        # If we have passed a 10% threshold, force a refresh/flush
+        # Check if we crossed the next 10% threshold
         if self.min_log_step > 0:
             if (self.n - self._last_logged_n) >= self.min_log_step:
-                self.refresh()
+                percent = int(100 * self.n / self.total)
+                Logger(
+                    f"System Progress: {self.n} / {self.total} ({percent}%)",
+                    Logger.Levels.debug
+                ).log()
                 self._last_logged_n = self.n
         return displayed
 

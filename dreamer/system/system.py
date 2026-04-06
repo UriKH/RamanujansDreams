@@ -93,7 +93,7 @@ class System:
             functions = '\n'
             for i, func in enumerate(funcs):
                 if func.cmf.__class__ == CMF:
-                    pretty_mats = '\n\n>>> '.join(f'{sp.pretty(sym, use_unicode=True)}:\n{sp.pretty(mat, use_unicode=True)}' for sym, mat in func.cmf.matrices.items())
+                    pretty_mats = '\n\n>>> '.join(f'{sp.pretty(sym, use_unicode=True, wrap_line=False)}:\n{sp.pretty(mat, use_unicode=True, wrap_line=False)}' for sym, mat in func.cmf.matrices.items())
                     functions += f'{i+1}. CMF: \n>>>{pretty_mats}\n with offset {tuple(func.shift.values())}\n'
                 else:
                     functions += f'{i+1}. CMF: {repr(func.cmf)} with offset {tuple(func.shift.values())}\n'
