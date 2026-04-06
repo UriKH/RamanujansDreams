@@ -26,6 +26,6 @@ dependencies = [
     "scipy",
     "pulp",
     "LIReC @ git+https://github.com/RamanujanMachine/LIReC.git@main",
-    "fpylll"
-#    "fpylll; sys_platform != 'win32'"
+    "cysignals; sys_platform != 'win32'",
+    "fpylll; sys_platform != 'win32'"
 ]

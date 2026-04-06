@@ -10,9 +10,29 @@ class SmartTQDM(tqdm):
         SmartTQDM._depth += 1
         if 'leave' not in kwargs:
             kwargs.update({'leave': is_top_level})
+
+        # Determine the step size for 10% jumps if 'total' is known
+        self.min_log_step = 0
+        if 'total' in kwargs and kwargs['total']:
+            self.min_log_step = max(1, kwargs['total'] // 10)
+        elif len(args) > 0 and hasattr(args[0], '__len__'):
+            self.min_log_step = max(1, len(args[0]) // 10)
+
         super().__init__(*args, **kwargs)
         self.last_print_func = Logger.print_func
         Logger.print_func = self.write
+        self._last_logged_n = 0
+
+    def update(self, n=1):
+        """Overrides update to force a flush every 10%."""
+        displayed = super().update(n)
+
+        # If we have passed a 10% threshold, force a refresh/flush
+        if self.min_log_step > 0:
+            if (self.n - self._last_logged_n) >= self.min_log_step:
+                self.refresh()
+                self._last_logged_n = self.n
+        return displayed
 
     def close(self):
         SmartTQDM._depth -= 1
