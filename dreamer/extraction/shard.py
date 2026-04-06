@@ -2,10 +2,10 @@ from dreamer.extraction.hyperplanes import Hyperplane
 from dreamer.utils.schemes.searchable import Searchable
 from dreamer.utils.types import *
 from dreamer.utils.rand import *
+from dreamer.utils.logger import Logger
 from dreamer.utils.constants.constant import Constant
 from dreamer.configs import config
 from .sampler.e2e import EndToEndSamplingEngine
-from scipy.special import gamma, zeta
 
 
 class Shard(Searchable):
@@ -123,6 +123,8 @@ class Shard(Searchable):
     def sample_trajectories(self, compute_n_samples: Callable[int, [int]], *, strict: Optional[bool] = False) -> Set[Position]:
         # from dreamer.utils.logger import Logger
         # Logger(f'A:\n{self.A}\nb:{self.b}', Logger.Levels.info).log()
+
+        Logger(f'Shard description (Ax < b) \nA:\n{self.A}\nb:\n{self.b}\n', Logger.Levels.debug).log()
 
         sampler = EndToEndSamplingEngine(self.A)
         samples = sampler.harvest(compute_n_samples)
