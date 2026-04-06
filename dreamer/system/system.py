@@ -93,7 +93,20 @@ class System:
             functions = '\n'
             for i, func in enumerate(funcs):
                 if func.cmf.__class__ == CMF:
-                    pretty_mats = '\n\n>>> '.join(f'{sp.pretty(sym, use_unicode=True, wrap_line=False)}:\n{sp.pretty(mat, use_unicode=True, wrap_line=False)}' for sym, mat in func.cmf.matrices.items())
+                    formatted_matrices = []
+                    for sym, mat in func.cmf.matrices.items():
+                        # Keep the symbol (like 'A' or 'B') pretty
+                        sym_str = sp.pretty(sym, use_unicode=True)
+
+                        # Format the matrix as a standard string, row by row,
+                        # completely avoiding the broken 2D ASCII brackets
+                        rows_str = ',\n'.join(f'    {str(list(mat.row(r)))}' for r in range(mat.rows))
+                        mat_str = f"[\n{rows_str}\n  ]"
+
+                        formatted_matrices.append(f"{sym_str}:\n  {mat_str}")
+
+                    pretty_mats = '\n\n>>> '.join(formatted_matrices)
+                    # pretty_mats = '\n\n>>> '.join(f'{sp.pretty(sym, use_unicode=True, wrap_line=False)}:\n{sp.pretty(mat, use_unicode=True, wrap_line=False)}' for sym, mat in func.cmf.matrices.items())
                     functions += f'{i+1}. CMF: \n>>>{pretty_mats}\n with offset {tuple(func.shift.values())}\n'
                 else:
                     functions += f'{i+1}. CMF: {repr(func.cmf)} with offset {tuple(func.shift.values())}\n'
